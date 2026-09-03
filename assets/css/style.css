@@ -1056,7 +1056,7 @@ h1, h2, h3, h4, h5, h6 { font-weight: 700; color: var(--clr-text); line-height: 
 .filter-bar input:focus,
 .filter-bar select:focus { border-color: var(--clr-primary); }
 
-.filter-bar input { min-width: 200px; }
+.filter-bar input { min-width: 160px; flex: 1; }
 
 /* ================================================
    15. MODALS
@@ -1105,6 +1105,7 @@ h1, h2, h3, h4, h5, h6 { font-weight: 700; color: var(--clr-text); line-height: 
   display: flex;
   flex-direction: column;
   gap: 10px;
+  max-width: calc(100vw - 24px);
 }
 
 .app-toast {
@@ -1117,7 +1118,8 @@ h1, h2, h3, h4, h5, h6 { font-weight: 700; color: var(--clr-text); line-height: 
   box-shadow: var(--shadow-lg);
   font-size: 14px;
   font-weight: 500;
-  min-width: 280px;
+  min-width: 260px;
+  max-width: 340px;
   border-left: 4px solid;
   animation: slideInRight 0.3s ease;
 }
@@ -1324,6 +1326,9 @@ h1, h2, h3, h4, h5, h6 { font-weight: 700; color: var(--clr-text); line-height: 
 /* ================================================
    22. RESPONSIVE (Mobile)
    ================================================ */
+/* ================================================
+   22. RESPONSIVE — Tablet (≤ 768px)
+   ================================================ */
 @media (max-width: 768px) {
   :root {
     --sidebar-width: 0px;
@@ -1331,50 +1336,308 @@ h1, h2, h3, h4, h5, h6 { font-weight: 700; color: var(--clr-text); line-height: 
   }
 
   .sidebar {
-    transform: translateX(-260px);
-    width: 260px;
+    transform: translateX(-270px);
+    width: 270px;
+    z-index: 1050;
   }
 
   .sidebar.open {
     transform: translateX(0);
-    width: 260px;
+    box-shadow: 4px 0 40px rgba(0,0,0,0.35);
   }
 
   .main-content { margin-left: 0; }
 
-  .stats-grid { grid-template-columns: 1fr 1fr; }
+  .stats-grid { grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
 
-  .page-header { flex-direction: column; }
+  .page-header {
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
 
-  .topbar { padding: 0 16px; }
+  .page-header > *:last-child { align-self: stretch; }
+  .page-header .btn-primary-app,
+  .page-header .btn-outline-app { width: 100%; justify-content: center; }
+
+  .page-title { font-size: 18px; }
+
+  .topbar { padding: 0 14px; }
+  .topbar-date { display: none; }
 
   .sidebar-overlay {
-    display: block;
+    display: block !important;
     position: fixed;
     inset: 0;
-    background: rgba(0,0,0,0.5);
-    z-index: 999;
+    background: rgba(0,0,0,0.55);
+    z-index: 1049;
+    backdrop-filter: blur(2px);
   }
 
   .btn-mobile-menu {
     display: flex !important;
     align-items: center;
     justify-content: center;
-    width: 36px;
-    height: 36px;
+    width: 38px;
+    height: 38px;
     background: var(--clr-bg);
-    border: none;
-    border-radius: var(--radius-sm);
+    border: 1px solid var(--clr-border);
+    border-radius: var(--radius-md);
     cursor: pointer;
     font-size: 18px;
     color: var(--clr-text);
+    flex-shrink: 0;
   }
+
+  /* Card panel header wraps */
+  .card-panel-header {
+    flex-wrap: wrap;
+    padding: 14px 16px;
+    gap: 10px;
+  }
+
+  /* Filter bar stacks vertically */
+  .filter-bar {
+    flex-direction: column;
+    width: 100%;
+    gap: 8px;
+  }
+  .filter-bar input,
+  .filter-bar select { width: 100%; }
+
+  /* Table font smaller */
+  .app-table { font-size: 12px; }
+  .app-table thead th { padding: 9px 12px; font-size: 10px; }
+  .app-table td { padding: 10px 12px; }
+
+  /* Modals full-width */
+  .modal-dialog { margin: 10px; }
+  .modal-dialog.modal-lg { max-width: calc(100vw - 20px); }
 }
 
 @media (min-width: 769px) {
-  .btn-mobile-menu { display: none; }
-  .sidebar-overlay  { display: none; }
+  .btn-mobile-menu { display: none !important; }
+  .sidebar-overlay  { display: none !important; }
 }
+
+/* ================================================
+   22b. RESPONSIVE — iPhone 13 & small phones (≤ 430px)
+   ================================================ */
+@media (max-width: 430px) {
+  :root { --content-padding: 12px; }
+
+  /* ── LOGIN ── */
+  .login-card {
+    padding: 32px 22px;
+    border-radius: var(--radius-lg);
+  }
+  .login-logo-icon { width: 60px; height: 60px; }
+  .login-logo-icon svg { width: 32px; height: 32px; }
+  .login-title { font-size: 16px; }
+
+  /* ── TOPBAR ── */
+  .topbar { height: 56px; padding: 0 12px; }
+  .topbar-title { font-size: 15px; }
+  .topbar-breadcrumb { font-size: 11px; }
+  .topbar-date { display: none; }
+
+  /* ── PAGE HEADER ── */
+  .page-title  { font-size: 17px; }
+  .page-subtitle { font-size: 12px; }
+  .page-header { margin-bottom: 14px; gap: 8px; }
+
+  /* ── STAT CARDS — single column on very small screens ── */
+  .stats-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  .stat-card {
+    padding: 14px;
+    gap: 10px;
+    border-radius: var(--radius-md);
+  }
+
+  .stat-card-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 18px;
+    border-radius: 10px;
+    flex-shrink: 0;
+  }
+
+  .stat-card-value  { font-size: 18px; }
+  .stat-card-label  { font-size: 10px; }
+  .stat-card-sub    { font-size: 10px; margin-top: 2px; }
+
+  /* ── CARD PANEL ── */
+  .card-panel-header {
+    padding: 12px 14px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .card-panel-title { font-size: 13px; }
+  .card-panel-body  { padding: 14px; }
+
+  /* ── TABLE — horizontal scroll optimised ── */
+  .table-wrapper {
+    -webkit-overflow-scrolling: touch;
+    overflow-x: auto;
+  }
+
+  .app-table { font-size: 11.5px; min-width: 520px; }
+  .app-table thead th { padding: 8px 10px; font-size: 9.5px; }
+  .app-table td { padding: 9px 10px; }
+
+  /* ── FILTER BAR ── */
+  .filter-bar {
+    flex-direction: column;
+    padding: 12px 14px;
+    gap: 8px;
+  }
+  .filter-bar input,
+  .filter-bar select {
+    width: 100%;
+    height: 38px;
+    font-size: 13px;
+  }
+
+  /* ── BUTTONS ── */
+  .btn-primary-app,
+  .btn-outline-app {
+    padding: 8px 14px;
+    font-size: 12.5px;
+  }
+
+  .btn-sm-action { font-size: 11px; padding: 4px 8px; }
+
+  /* ── FORMS ── */
+  .form-control-app,
+  .form-select-app { height: 40px; font-size: 13px; }
+
+  .form-label-app { font-size: 11px; }
+
+  /* ── MODALS ── */
+  .modal-dialog {
+    margin: 6px;
+    align-items: flex-end;
+  }
+  .modal-content {
+    border-radius: 20px 20px 0 0 !important;
+    max-height: 92vh;
+    overflow-y: auto;
+  }
+  .modal-dialog.modal-lg,
+  .modal-dialog.modal-dialog-centered {
+    margin: 6px;
+    align-items: flex-end;
+  }
+  .modal-dialog.modal-dialog-centered .modal-content {
+    border-radius: 20px 20px 0 0 !important;
+  }
+  .modal-header { padding: 14px 16px !important; }
+  .modal-body   { padding: 16px !important; }
+  .modal-footer { padding: 12px 16px !important; flex-wrap: wrap; gap: 8px; }
+  .modal-footer > * { flex: 1; justify-content: center; min-width: 0; }
+
+  /* ── CHART ── */
+  .chart-container { padding: 14px; }
+  .chart-title { font-size: 13px; }
+
+  /* ── SIDEBAR ── */
+  .sidebar { width: 260px; }
+  .sidebar-brand { padding: 16px 14px; }
+  .sidebar-nav { padding: 10px 10px; }
+  .sidebar-nav-item { padding: 9px 10px; font-size: 13px; }
+  .sidebar-nav-label { font-size: 9.5px; }
+  .sidebar-bottom { padding: 12px 10px; }
+
+  /* ── SALES FORM ── */
+  .order-summary-card { padding: 14px; }
+
+  /* ── PAGE CONTENT ── */
+  .page-content { padding: var(--content-padding); }
+
+  /* ── FUEL PRICE LIST ── */
+  #fuel-prices-list .d-flex { flex-direction: column; align-items: stretch !important; gap: 10px; }
+  #fuel-prices-list .d-flex > div:last-child { justify-content: space-between; }
+  #fuel-prices-list input[type="number"] { width: 100% !important; }
+
+  /* ── ROW STACKING ── */
+  .row > [class^="col-lg"],
+  .row > [class^="col-md"] {
+    flex: 0 0 100%;
+    max-width: 100%;
+    width: 100%;
+  }
+
+  /* ── DELIVERY MODAL DETAILS ── */
+  #deliveryModal .row.g-3 { gap: 8px !important; }
+  #deliveryModal [class^="col-md"] {
+    flex: 0 0 100%;
+    max-width: 100%;
+  }
+
+  /* ── USER / DRIVER TABLE AKSI COLUMN ── */
+  .d-flex.gap-1 { flex-wrap: wrap; gap: 4px !important; }
+
+  /* ── BOTTOM SAFE AREA (iPhone notch) ── */
+  .modal-footer { padding-bottom: calc(12px + env(safe-area-inset-bottom)) !important; }
+  .sidebar-bottom { padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
+}
+
+/* ── Very small (≤ 370px, iPhone SE) ── */
+@media (max-width: 370px) {
+  .stats-grid { grid-template-columns: 1fr; }
+  .stat-card  { padding: 12px; }
+}
+
+/* ── Mobile toast fix ── */
+@media (max-width: 430px) {
+  .toast-container {
+    bottom: 16px;
+    right: 12px;
+    left: 12px;
+    right: 12px;
+    align-items: stretch;
+  }
+  .app-toast {
+    min-width: 0;
+    max-width: 100%;
+    font-size: 13px;
+    padding: 12px 14px;
+  }
+
+  /* Charts shorter on mobile */
+  .chart-container { height: auto !important; }
+  #chart-revenue,
+  #chart-fuel { max-height: 200px !important; }
+
+  /* Sales order summary sticky footer on mobile */
+  .order-summary-card {
+    position: sticky;
+    bottom: 0;
+    z-index: 100;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.10);
+  }
+
+  /* Login page full-screen on mobile */
+  .login-body { align-items: flex-end; }
+  .login-wrapper {
+    max-width: 100%;
+    padding: 0;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .login-card {
+    border-radius: 24px 24px 0 0;
+    padding: 28px 20px;
+    padding-bottom: calc(24px + env(safe-area-inset-bottom));
+  }
+}
+
+
 
 /* ================================================
    23. UTILITIES
