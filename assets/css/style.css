@@ -279,6 +279,8 @@ h1, h2, h3, h4, h5, h6 { font-weight: 700; color: var(--clr-text); line-height: 
 .app-layout {
   display: flex;
   min-height: 100vh;
+  max-width: 100vw;
+  overflow-x: hidden;
 }
 
 /* ================================================
@@ -474,6 +476,7 @@ h1, h2, h3, h4, h5, h6 { font-weight: 700; color: var(--clr-text); line-height: 
    ================================================ */
 .main-content {
   flex: 1;
+  min-width: 0;
   margin-left: var(--sidebar-width);
   min-height: 100vh;
   display: flex;
@@ -1366,12 +1369,10 @@ h1, h2, h3, h4, h5, h6 { font-weight: 700; color: var(--clr-text); line-height: 
   .topbar-date { display: none; }
 
   .sidebar-overlay {
-    display: block !important;
     position: fixed;
     inset: 0;
-    background: rgba(0,0,0,0.55);
+    background: rgba(0,0,0,0.5);
     z-index: 1049;
-    backdrop-filter: blur(2px);
   }
 
   .btn-mobile-menu {
@@ -1417,7 +1418,6 @@ h1, h2, h3, h4, h5, h6 { font-weight: 700; color: var(--clr-text); line-height: 
 
 @media (min-width: 769px) {
   .btn-mobile-menu { display: none !important; }
-  .sidebar-overlay  { display: none !important; }
 }
 
 /* ================================================
@@ -1448,7 +1448,7 @@ h1, h2, h3, h4, h5, h6 { font-weight: 700; color: var(--clr-text); line-height: 
 
   /* ── STAT CARDS — single column on very small screens ── */
   .stats-grid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
     gap: 10px;
     margin-bottom: 14px;
   }
@@ -1522,19 +1522,26 @@ h1, h2, h3, h4, h5, h6 { font-weight: 700; color: var(--clr-text); line-height: 
   .modal-dialog {
     margin: 6px;
     align-items: flex-end;
+    height: calc(100% - 12px);
   }
   .modal-content {
     border-radius: 20px 20px 0 0 !important;
-    max-height: 92vh;
+    max-height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+  .modal-body {
     overflow-y: auto;
   }
   .modal-dialog.modal-lg,
   .modal-dialog.modal-dialog-centered {
     margin: 6px;
     align-items: flex-end;
+    height: calc(100% - 12px);
   }
   .modal-dialog.modal-dialog-centered .modal-content {
     border-radius: 20px 20px 0 0 !important;
+    max-height: 100%;
   }
   .modal-header { padding: 14px 16px !important; }
   .modal-body   { padding: 16px !important; }
@@ -1574,10 +1581,12 @@ h1, h2, h3, h4, h5, h6 { font-weight: 700; color: var(--clr-text); line-height: 
 
   /* ── DELIVERY MODAL DETAILS ── */
   #deliveryModal .row.g-3 { gap: 8px !important; }
-  #deliveryModal [class^="col-md"] {
+  #deliveryModal [class^="col-"] {
     flex: 0 0 100%;
     max-width: 100%;
+    margin-bottom: 8px;
   }
+  #deliveryModal .row.g-2 { margin-bottom: -8px; }
 
   /* ── USER / DRIVER TABLE AKSI COLUMN ── */
   .d-flex.gap-1 { flex-wrap: wrap; gap: 4px !important; }
