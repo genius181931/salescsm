@@ -174,15 +174,25 @@
           <div class="card-panel-header">
             <div class="card-panel-title"><i class="bi bi-table"></i> Data Pemesanan</div>
             <div class="filter-bar">
-              <input type="text" id="report-search" placeholder="Cari..." oninput="filterReport()" />
-              <select id="report-status" onchange="filterReport()">
-                <option value="">Semua Status</option>
-                <option value="Menunggu">Menunggu</option>
-                <option value="Terkonfirmasi">Terkonfirmasi</option>
-                <option value="Terkirim">Terkirim</option>
-              </select>
-              <input type="date" id="report-date-from" onchange="filterReport()" title="Dari tanggal" />
-              <input type="date" id="report-date-to"   onchange="filterReport()" title="Sampai tanggal" />
+              <div class="filter-icon-wrapper">
+                <i class="bi bi-search"></i>
+                <input type="text" id="report-search" placeholder="Cari..." oninput="filterReport()" />
+              </div>
+              <div class="filter-icon-wrapper" style="min-width: 140px; flex: 0.5;">
+                <i class="bi bi-funnel"></i>
+                <select id="report-status" onchange="filterReport()">
+                  <option value="">Semua Status</option>
+                  <option value="Menunggu">Menunggu</option>
+                  <option value="Terkonfirmasi">Terkonfirmasi</option>
+                  <option value="Terkirim">Terkirim</option>
+                </select>
+              </div>
+              <div class="filter-dates flex-grow-1 flex-md-grow-0">
+                <span>Dari</span>
+                <input type="date" id="report-date-from" onchange="filterReport()" title="Dari tanggal" class="flex-grow-1" />
+                <span>s/d</span>
+                <input type="date" id="report-date-to"   onchange="filterReport()" title="Sampai tanggal" class="flex-grow-1" />
+              </div>
             </div>
           </div>
           <div class="table-wrapper">

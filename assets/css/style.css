@@ -1044,8 +1044,8 @@ h1, h2, h3, h4, h5, h6 { font-weight: 700; color: var(--clr-text); line-height: 
 
 .filter-bar input,
 .filter-bar select {
-  height: 36px;
-  padding: 0 12px;
+  height: 38px;
+  padding: 0 14px;
   border: 1.5px solid var(--clr-border);
   border-radius: var(--radius-md);
   font-size: 13px;
@@ -1054,12 +1054,46 @@ h1, h2, h3, h4, h5, h6 { font-weight: 700; color: var(--clr-text); line-height: 
   background: white;
   outline: none;
   transition: var(--t-fast);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.02);
 }
 
 .filter-bar input:focus,
-.filter-bar select:focus { border-color: var(--clr-primary); }
+.filter-bar select:focus { 
+  border-color: var(--clr-primary);
+  box-shadow: 0 0 0 3px rgba(204,0,0,0.1);
+}
 
 .filter-bar input { min-width: 160px; flex: 1; }
+
+.filter-icon-wrapper {
+  position: relative;
+  flex: 1;
+  min-width: 200px;
+}
+.filter-icon-wrapper .bi {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--clr-text-muted);
+  font-size: 14px;
+}
+.filter-icon-wrapper input,
+.filter-icon-wrapper select {
+  padding-left: 36px;
+  width: 100%;
+}
+
+.filter-dates {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.filter-dates span {
+  font-size: 12px;
+  color: var(--clr-text-muted);
+  font-weight: 500;
+}
 
 /* ================================================
    15. MODALS
@@ -1249,20 +1283,17 @@ h1, h2, h3, h4, h5, h6 { font-weight: 700; color: var(--clr-text); line-height: 
 }
 
 @media print {
-  /* Hide everything except print receipt */
-  .sidebar, .topbar, .page-header, .stats-grid,
-  .card-panel-header .btn-primary-app,
-  .card-panel-header .btn-outline-app,
-  .filter-bar, .table-wrapper, .toast-container,
-  .modal-footer button, .no-print { display: none !important; }
+  /* Hide the entire app UI */
+  .app-layout, .sidebar-overlay, .toast-container,
+  .modal, .modal-backdrop, .no-print { display: none !important; }
 
   .print-receipt {
-    display: block !important;
+    display: block; /* No !important so JS inline styles can hide/show the correct one */
     font-family: 'Inter', Arial, sans-serif;
     color: black;
-    padding: 20px;
-    max-width: 700px;
-    margin: 0 auto;
+    padding: 0;
+    max-width: 100%;
+    margin: 0;
   }
 
   .print-header {
@@ -1359,9 +1390,9 @@ h1, h2, h3, h4, h5, h6 { font-weight: 700; color: var(--clr-text); line-height: 
     margin-bottom: 16px;
   }
 
-  .page-header > *:last-child { align-self: stretch; }
-  .page-header .btn-primary-app,
-  .page-header .btn-outline-app { width: 100%; justify-content: center; }
+  .page-header > *:last-child { align-self: flex-start; }
+  .page-header .btn-primary-app { width: 100%; justify-content: center; }
+  .page-header .btn-outline-app { width: auto; }
 
   .page-title { font-size: 18px; }
 
@@ -1400,11 +1431,21 @@ h1, h2, h3, h4, h5, h6 { font-weight: 700; color: var(--clr-text); line-height: 
   /* Filter bar stacks vertically */
   .filter-bar {
     flex-direction: column;
+    align-items: stretch;
     width: 100%;
     gap: 8px;
   }
-  .filter-bar input,
-  .filter-bar select { width: 100%; }
+  .filter-bar .filter-icon-wrapper {
+    min-width: 0;
+  }
+  .filter-bar .filter-dates {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .filter-bar .filter-dates span {
+    display: none; /* Hide labels on mobile */
+  }
 
   /* Table font smaller */
   .app-table { font-size: 12px; }
@@ -1491,17 +1532,7 @@ h1, h2, h3, h4, h5, h6 { font-weight: 700; color: var(--clr-text); line-height: 
   .app-table td { padding: 9px 10px; }
 
   /* ── FILTER BAR ── */
-  .filter-bar {
-    flex-direction: column;
-    padding: 12px 14px;
-    gap: 8px;
-  }
-  .filter-bar input,
-  .filter-bar select {
-    width: 100%;
-    height: 38px;
-    font-size: 13px;
-  }
+  /* Handled in 768px media query */
 
   /* ── BUTTONS ── */
   .btn-primary-app,
@@ -1545,8 +1576,8 @@ h1, h2, h3, h4, h5, h6 { font-weight: 700; color: var(--clr-text); line-height: 
   }
   .modal-header { padding: 14px 16px !important; }
   .modal-body   { padding: 16px !important; }
-  .modal-footer { padding: 12px 16px !important; flex-wrap: wrap; gap: 8px; }
-  .modal-footer > * { flex: 1; justify-content: center; min-width: 0; }
+  .modal-footer { padding: 12px 16px !important; flex-direction: column-reverse; align-items: stretch; gap: 8px; }
+  .modal-footer > * { width: 100%; margin: 0 !important; justify-content: center; }
 
   /* ── CHART ── */
   .chart-container { padding: 14px; }

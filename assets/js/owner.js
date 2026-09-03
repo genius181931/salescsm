@@ -19,7 +19,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (!currentUser) return;
 
   UI.renderSidebarUser(currentUser);
-  await Promise.all([loadStats(), loadAllOrdersForReport(), loadUsers(), loadDrivers(), loadSettings(), loadFuelPricesOwner()]);
+  await loadStats();
+  await loadAllOrdersForReport();
+  await loadUsers();
+  await loadDrivers();
+  await loadSettings();
+  await loadFuelPricesOwner();
 });
 
 // ── Section Navigation ──────────────────────────────
@@ -834,6 +839,7 @@ function formatPhone(phone) {
   let p = String(phone).replace(/\D/g, '');
   if (p.startsWith('0'))  p = '62' + p.slice(1);
   if (!p.startsWith('62') && p.length > 0) p = '62' + p;
+  return p;
 }
 
 // ── WA Modal ─────────────────────────────────────
