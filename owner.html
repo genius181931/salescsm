@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Owner Dashboard — Pertamina Sales System</title>
+  <meta name="description" content="Dashboard Owner - Laporan lengkap dan manajemen pengguna sistem Pertamina." />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body>
+
+<div id="sidebar-overlay" class="sidebar-overlay" style="display:none;"></div>
+
+<div class="app-layout">
+
+  <!-- ========== SIDEBAR ========== -->
+  <aside class="sidebar" id="app-sidebar">
+    <div class="sidebar-brand">
+      <div class="sidebar-brand-icon">
+        <svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+          <path d="M20 4C20 4 10 14 10 22C10 27.5 14.5 32 20 32C25.5 32 30 27.5 30 22C30 14 20 4 20 4Z"/>
+          <path d="M20 14C20 14 15 19 15 23C15 25.8 17.2 28 20 28C22.8 28 25 25.8 25 23C25 19 20 14 20 14Z" fill="rgba(255,200,100,0.8)"/>
+        </svg>
+      </div>
+      <div class="sidebar-brand-text">
+        <div class="sidebar-brand-name">Owner Panel</div>
+        <div class="sidebar-brand-sub">Pertamina</div>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="sidebar-nav-label">Laporan</div>
+      <a class="sidebar-nav-item active" href="#" onclick="showSection('dashboard', this)">
+        <i class="bi bi-graph-up-arrow"></i> Dashboard & Grafik
+      </a>
+      <a class="sidebar-nav-item" href="#" onclick="showSection('laporan', this)">
+        <i class="bi bi-file-earmark-bar-graph"></i> Laporan Lengkap
+      </a>
+
+      <div class="sidebar-nav-label">Manajemen</div>
+      <a class="sidebar-nav-item" href="#" onclick="showSection('pengguna', this)">
+        <i class="bi bi-people-fill"></i> Kelola Pengguna
+      </a>
+      <a class="sidebar-nav-item" href="#" onclick="showSection('supir', this)">
+        <i class="bi bi-truck"></i> Kelola Supir
+      </a>
+
+      <div class="sidebar-nav-label">Pengaturan</div>
+      <a class="sidebar-nav-item" href="#" onclick="showSection('harga', this)">
+        <i class="bi bi-tags-fill"></i> Update Harga
+      </a>
+      <a class="sidebar-nav-item" href="#" onclick="showSection('pengaturan', this)">
+        <i class="bi bi-gear-fill"></i> Pengaturan Sistem
+      </a>
+    </nav>
+
+    <div class="sidebar-bottom">
+      <div class="sidebar-user">
+        <div class="sidebar-user-avatar" id="sidebar-user-avatar">O</div>
+        <div class="sidebar-user-info">
+          <div class="sidebar-user-name" id="sidebar-user-name">Owner</div>
+          <div class="sidebar-user-role" id="sidebar-user-role">Owner</div>
+        </div>
+      </div>
+      <button class="btn-logout" onclick="Auth.logout()">
+        <i class="bi bi-box-arrow-right"></i> Keluar
+      </button>
+    </div>
+  </aside>
+
+  <!-- ========== MAIN CONTENT ========== -->
+  <div class="main-content">
+
+    <div class="topbar">
+      <div class="topbar-left">
+        <button class="btn-mobile-menu" id="btn-mobile-menu"><i class="bi bi-list"></i></button>
+        <div>
+          <div class="topbar-title" id="topbar-section-title">Dashboard Owner</div>
+          <div class="topbar-breadcrumb">Owner &rsaquo; <span id="topbar-section-name">Overview</span></div>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <span class="topbar-date" id="topbar-date"></span>
+      </div>
+    </div>
+
+    <div class="page-content">
+
+      <!-- ════════════════════════════════════════
+           SECTION: DASHBOARD
+      ════════════════════════════════════════ -->
+      <section id="section-dashboard" class="anim-fade-in-up">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Dashboard Owner</div>
+            <div class="page-subtitle">Ringkasan bisnis dan analitik penjualan bahan bakar.</div>
+          </div>
+          <button class="btn-outline-app" onclick="loadStats(this)">
+            <i class="bi bi-arrow-clockwise"></i> Refresh
+          </button>
+        </div>
+
+        <!-- Stats -->
+        <div class="stats-grid">
+          <div class="stat-card stat-red">
+            <div class="stat-card-icon"><i class="bi bi-receipt-cutoff"></i></div>
+            <div class="stat-card-info">
+              <div class="stat-card-label">Total Order</div>
+              <div class="stat-card-value" id="stat-total-orders">0</div>
+              <div class="stat-card-sub">Semua waktu</div>
+            </div>
+          </div>
+          <div class="stat-card stat-blue">
+            <div class="stat-card-icon"><i class="bi bi-cash-coin"></i></div>
+            <div class="stat-card-info">
+              <div class="stat-card-label">Total Pendapatan</div>
+              <div class="stat-card-value currency" id="stat-total-revenue" style="font-size:15px;">Rp 0</div>
+              <div class="stat-card-sub">Semua waktu</div>
+            </div>
+          </div>
+          <div class="stat-card stat-amber">
+            <div class="stat-card-icon"><i class="bi bi-hourglass-split"></i></div>
+            <div class="stat-card-info">
+              <div class="stat-card-label">Menunggu</div>
+              <div class="stat-card-value" id="stat-pending">0</div>
+              <div class="stat-card-sub">Belum konfirmasi</div>
+            </div>
+          </div>
+          <div class="stat-card stat-green">
+            <div class="stat-card-icon"><i class="bi bi-check2-circle"></i></div>
+            <div class="stat-card-info">
+              <div class="stat-card-label">Terkonfirmasi</div>
+              <div class="stat-card-value" id="stat-confirmed">0</div>
+              <div class="stat-card-sub">Pembayaran diterima</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Charts Row -->
+        <div class="row g-4">
+          <div class="col-lg-8">
+            <div class="chart-container" style="height:300px;">
+              <div class="chart-title"><i class="bi bi-bar-chart-line"></i> Pendapatan per Bulan</div>
+              <canvas id="chart-revenue" style="max-height:240px;"></canvas>
+            </div>
+          </div>
+          <div class="col-lg-4">
+            <div class="chart-container" style="height:300px;">
+              <div class="chart-title"><i class="bi bi-pie-chart"></i> Distribusi Jenis BBM</div>
+              <canvas id="chart-fuel" style="max-height:240px;"></canvas>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ════════════════════════════════════════
+           SECTION: LAPORAN
+      ════════════════════════════════════════ -->
+      <section id="section-laporan" style="display:none;" class="anim-fade-in-up">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Laporan Lengkap</div>
+            <div class="page-subtitle">Semua data pemesanan dengan filter dan ekspor.</div>
+          </div>
+          <button class="btn-primary-app" onclick="exportCSV()">
+            <i class="bi bi-download"></i> Export CSV
+          </button>
+        </div>
+
+        <div class="card-panel">
+          <div class="card-panel-header">
+            <div class="card-panel-title"><i class="bi bi-table"></i> Data Pemesanan</div>
+            <div class="filter-bar">
+              <input type="text" id="report-search" placeholder="Cari..." oninput="filterReport()" />
+              <select id="report-status" onchange="filterReport()">
+                <option value="">Semua Status</option>
+                <option value="Menunggu">Menunggu</option>
+                <option value="Terkonfirmasi">Terkonfirmasi</option>
+                <option value="Terkirim">Terkirim</option>
+              </select>
+              <input type="date" id="report-date-from" onchange="filterReport()" title="Dari tanggal" />
+              <input type="date" id="report-date-to"   onchange="filterReport()" title="Sampai tanggal" />
+            </div>
+          </div>
+          <div class="table-wrapper">
+            <table class="app-table">
+              <thead>
+                <tr>
+                  <th>No. Order</th>
+                  <th>Tgl Pesan</th>
+                  <th>Tgl Kirim</th>
+                  <th>Perusahaan</th>
+                  <th>BBM</th>
+                  <th>Harga/L</th>
+                  <th>Volume (L)</th>
+                  <th>Total</th>
+                  <th>Sales</th>
+                  <th>Status</th>
+                  <th>Konfirmasi</th>
+                  <th>Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="report-orders-body">
+                <tr><td colspan="11" class="table-empty">
+                  <i class="bi bi-inbox"></i><p>Memuat data...</p>
+                </td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="p-3" style="border-top:1px solid var(--clr-border);background:#FAFBFC;">
+            <span class="text-muted" style="font-size:12px;">
+              Menampilkan <strong id="report-count">0</strong> order
+              &nbsp;|&nbsp; Total nilai: <strong class="currency" id="report-total-value">Rp 0</strong>
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════════════════════════════════════
+           SECTION: KELOLA PENGGUNA
+      ════════════════════════════════════════ -->
+      <section id="section-pengguna" style="display:none;" class="anim-fade-in-up">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Kelola Pengguna</div>
+            <div class="page-subtitle">Tambah, edit, dan hapus akun Sales dan Admin.</div>
+          </div>
+          <button class="btn-primary-app" data-bs-toggle="modal" data-bs-target="#addUserModal">
+            <i class="bi bi-person-plus"></i> Tambah Pengguna
+          </button>
+        </div>
+
+        <div class="card-panel">
+          <div class="card-panel-header">
+            <div class="card-panel-title"><i class="bi bi-people"></i> Daftar Pengguna</div>
+            <button class="btn-outline-app" onclick="loadUsers(this)">
+              <i class="bi bi-arrow-clockwise"></i> Refresh
+            </button>
+          </div>
+          <div class="table-wrapper">
+            <table class="app-table">
+              <thead>
+                <tr>
+                  <th>Username</th>
+                  <th>Nama Lengkap</th>
+                  <th>Role</th>
+                  <th>No. Telepon</th>
+                  <th>Status</th>
+                  <th>Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="users-body">
+                <tr><td colspan="6" class="table-empty">
+                  <i class="bi bi-inbox"></i><p>Memuat data...</p>
+                </td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════════════════════════════════════
+           SECTION: KELOLA SUPIR
+      ════════════════════════════════════════ -->
+      <section id="section-supir" style="display:none;" class="anim-fade-in-up">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Kelola Supir</div>
+            <div class="page-subtitle">Daftar supir untuk pengantaran bahan bakar.</div>
+          </div>
+          <button class="btn-primary-app" data-bs-toggle="modal" data-bs-target="#addDriverModal">
+            <i class="bi bi-person-plus"></i> Tambah Supir
+          </button>
+        </div>
+
+        <div class="card-panel">
+          <div class="card-panel-header">
+            <div class="card-panel-title"><i class="bi bi-truck"></i> Daftar Supir</div>
+            <button class="btn-outline-app" onclick="loadDrivers(this)">
+              <i class="bi bi-arrow-clockwise"></i> Refresh
+            </button>
+          </div>
+          <div class="table-wrapper">
+            <table class="app-table">
+              <thead>
+                <tr>
+                  <th>Nama</th>
+                  <th>No. WhatsApp</th>
+                  <th>Kendaraan</th>
+                  <th>Status</th>
+                  <th>Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="drivers-body">
+                <tr><td colspan="5" class="table-empty">
+                  <i class="bi bi-inbox"></i><p>Memuat data...</p>
+                </td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════════════════════════════════════
+           SECTION: PENGATURAN SISTEM
+      ════════════════════════════════════════ -->
+      <section id="section-pengaturan" style="display:none;" class="anim-fade-in-up">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Pengaturan Sistem</div>
+            <div class="page-subtitle">Atur informasi rekening, harga BBM, dan biaya sewa truck.</div>
+          </div>
+        </div>
+
+        <div class="row g-4">
+          <!-- Rekening -->
+          <div class="col-lg-12">
+            <div class="card-panel h-100">
+              <div class="card-panel-header">
+                <div class="card-panel-title"><i class="bi bi-bank"></i> Rekening Perusahaan</div>
+              </div>
+              <div class="p-4">
+                <p class="text-muted mb-3" style="font-size:13px;">Informasi rekening ini akan ditampilkan kepada Sales saat mereka mengupload bukti pembayaran.</p>
+                <div class="mb-3">
+                  <label class="form-label-app">Nama Bank</label>
+                  <input type="text" id="setting-bank-name" class="form-control-app" placeholder="Contoh: BCA" />
+                </div>
+                <div class="mb-3">
+                  <label class="form-label-app">Atas Nama</label>
+                  <input type="text" id="setting-bank-owner" class="form-control-app" placeholder="Contoh: PT Pertamina" />
+                </div>
+                <div class="mb-4">
+                  <label class="form-label-app">No. Rekening</label>
+                  <input type="text" id="setting-bank-account" class="form-control-app" placeholder="Contoh: 1234567890" />
+                </div>
+                <button class="btn-primary-app w-100" id="btn-save-settings" onclick="saveSettings()">
+                  <i class="bi bi-check-lg"></i> Simpan Rekening
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ════════════════════════════════════════
+           SECTION: UPDATE HARGA
+      ════════════════════════════════════════ -->
+      <section id="section-harga" style="display:none;" class="anim-fade-in-up">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Update Harga</div>
+            <div class="page-subtitle">Perbarui harga bahan bakar dan jasa sewa truck.</div>
+          </div>
+        </div>
+
+        <div class="row g-4">
+          <div class="col-lg-7">
+            <div class="card-panel h-100">
+              <div class="card-panel-header">
+                <div class="card-panel-title"><i class="bi bi-tags-fill"></i> Daftar Harga BBM</div>
+                <button class="btn-outline-app" onclick="loadFuelPricesOwner(this)">
+                  <i class="bi bi-arrow-clockwise"></i> Refresh
+                </button>
+              </div>
+              <div class="card-panel-body">
+                <div id="fuel-prices-list">
+                  <p class="text-muted text-center py-3">Memuat harga...</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="col-lg-5">
+            <div class="card-panel h-100">
+              <div class="card-panel-header">
+                <div class="card-panel-title"><i class="bi bi-truck"></i> Harga Jasa Sewa Truck</div>
+              </div>
+              <div class="card-panel-body">
+                <p class="text-muted" style="font-size:13px;">Biaya ini akan otomatis ditambahkan ke dalam perhitungan total bayar saat sales membuat pemesanan.</p>
+                <div class="mb-3">
+                  <label class="form-label-app">Harga Sewa (Rp)</label>
+                  <input type="number" id="setting-truck-fee" class="form-control-app" placeholder="Contoh: 500000" />
+                </div>
+                <button class="btn-primary-app w-100" id="btn-save-truck-owner" onclick="saveTruckFeeOwner()">
+                  <i class="bi bi-check-lg"></i> Simpan Harga Sewa
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div><!-- /.page-content -->
+  </div><!-- /.main-content -->
+</div><!-- /.app-layout -->
+
+<!-- ════════════════════════════════════════
+     MODAL: TAMBAH PENGGUNA
+════════════════════════════════════════ -->
+<div class="modal fade" id="addUserModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-person-plus-fill"></i> Tambah Pengguna Baru</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label-app">Username <span class="required">*</span></label>
+            <input type="text" id="new-username" class="form-control-app" placeholder="username123" />
+          </div>
+          <div class="col-md-6">
+            <label class="form-label-app">Password <span class="required">*</span></label>
+            <input type="text" id="new-password" class="form-control-app" placeholder="password" />
+          </div>
+          <div class="col-md-6">
+            <label class="form-label-app">Nama Lengkap <span class="required">*</span></label>
+            <input type="text" id="new-name" class="form-control-app" placeholder="Nama Lengkap" />
+          </div>
+          <div class="col-md-6">
+            <label class="form-label-app">Role <span class="required">*</span></label>
+            <select id="new-role" class="form-select-app">
+              <option value="Sales">Sales</option>
+              <option value="Admin">Admin</option>
+            </select>
+          </div>
+          <div class="col-12">
+            <label class="form-label-app">No. Telepon</label>
+            <input type="text" id="new-phone" class="form-control-app" placeholder="08xxxxxxxxxx" />
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-outline-app" data-bs-dismiss="modal">Batal</button>
+        <button type="button" class="btn-primary-app" onclick="createUser()">
+          <i class="bi bi-person-check"></i> Simpan
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     MODAL: TAMBAH SUPIR
+════════════════════════════════════════ -->
+<div class="modal fade" id="addDriverModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-truck"></i> Tambah Supir Baru</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-3">
+          <div class="col-12">
+            <label class="form-label-app">Nama Supir <span class="required">*</span></label>
+            <input type="text" id="drv-name" class="form-control-app" placeholder="Nama lengkap supir" />
+          </div>
+          <div class="col-md-6">
+            <label class="form-label-app">No. WhatsApp <span class="required">*</span></label>
+            <input type="text" id="drv-phone" class="form-control-app" placeholder="08xxxxxxxxxx" />
+          </div>
+          <div class="col-md-6">
+            <label class="form-label-app">Kendaraan</label>
+            <input type="text" id="drv-vehicle" class="form-control-app" placeholder="Misal: Truk Tangki B 1234 AB" />
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-outline-app" data-bs-dismiss="modal">Batal</button>
+        <button type="button" class="btn-primary-app" onclick="createDriver()">
+          <i class="bi bi-check-lg"></i> Simpan
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     MODAL: KONFIRMASI BAYAR
+════════════════════════════════════════ -->
+<div class="modal fade" id="confirmModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-check-circle-fill"></i> Konfirmasi Pembayaran</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="info-box mb-3">
+          <i class="bi bi-info-circle-fill"></i>
+          <div>Anda akan mengkonfirmasi bahwa pembayaran untuk order ini telah masuk ke rekening.</div>
+        </div>
+        <div id="confirm-order-details" class="mb-3"></div>
+        <div>
+          <label class="form-label-app">Pilih Supir Pengantar <span class="required">*</span></label>
+          <select id="confirm-driver" class="form-select-app" required>
+            <option value="">-- Pilih Supir --</option>
+          </select>
+          <small class="text-muted mt-1 d-block">Supir yang dipilih akan menerima notifikasi via WhatsApp.</small>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-outline-app" data-bs-dismiss="modal">Batal</button>
+        <button type="button" class="btn-primary-app" id="btn-do-confirm" onclick="doConfirmPayment()">
+          <i class="bi bi-check-lg"></i> Konfirmasi
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     MODAL: BUKTI PENGANTARAN
+════════════════════════════════════════ -->
+<div class="modal fade" id="deliveryModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content" style="border-radius:16px;overflow:hidden;">
+      <div class="modal-header" style="background:linear-gradient(135deg,#cc0000,#e53e3e);color:white;border:none;padding:20px 24px;">
+        <div>
+          <h5 class="modal-title mb-0" style="font-weight:700;font-size:16px;">
+            <i class="bi bi-file-earmark-text me-2"></i>Bukti Pengantaran Bahan Bakar
+          </h5>
+          <div style="font-size:11px;opacity:0.85;margin-top:3px;">Preview surat jalan sebelum dicetak</div>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-0">
+        <div style="background:#f0fdf4;border-bottom:1px solid #86efac;padding:10px 24px;display:flex;align-items:center;gap:8px;">
+          <i class="bi bi-check-circle-fill" style="color:#16a34a;font-size:16px;"></i>
+          <span style="font-size:13px;font-weight:600;color:#15803d;">PEMBAYARAN TELAH DIKONFIRMASI</span>
+          <span id="dm-order-id" style="margin-left:auto;font-size:12px;font-weight:700;color:#cc0000;background:#fee2e2;padding:3px 10px;border-radius:20px;"></span>
+        </div>
+        <div class="p-4">
+          <div class="row g-3 mb-3">
+            <div class="col-md-4">
+              <div style="background:var(--clr-bg);border:1px solid var(--clr-border);border-radius:10px;padding:14px;">
+                <div style="font-size:11px;color:var(--clr-text-muted);text-transform:uppercase;font-weight:600;margin-bottom:4px;"><i class="bi bi-calendar3 me-1"></i>Tanggal Pesan</div>
+                <div id="dm-order-date" style="font-weight:700;font-size:15px;"></div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div style="background:var(--clr-bg);border:2px solid #cc0000;border-radius:10px;padding:14px;">
+                <div style="font-size:11px;color:#cc0000;text-transform:uppercase;font-weight:600;margin-bottom:4px;"><i class="bi bi-truck me-1"></i>Tanggal Pengiriman</div>
+                <div id="dm-delivery-date" style="font-weight:700;font-size:15px;color:#cc0000;"></div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div style="background:var(--clr-bg);border:1px solid var(--clr-border);border-radius:10px;padding:14px;">
+                <div style="font-size:11px;color:var(--clr-text-muted);text-transform:uppercase;font-weight:600;margin-bottom:4px;"><i class="bi bi-building me-1"></i>Perusahaan</div>
+                <div id="dm-company" style="font-weight:700;font-size:15px;"></div>
+              </div>
+            </div>
+          </div>
+          <div style="background:var(--clr-bg);border:1px solid var(--clr-border);border-radius:10px;padding:16px;margin-bottom:14px;">
+            <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--clr-text-muted);margin-bottom:12px;border-bottom:1px solid var(--clr-border);padding-bottom:8px;">
+              <i class="bi bi-fuel-pump me-1"></i>Detail Bahan Bakar
+            </div>
+            <div class="row g-2">
+              <div class="col-4">
+                <div style="font-size:11px;color:var(--clr-text-muted);">Jenis BBM</div>
+                <div id="dm-fuel-type" style="font-weight:700;font-size:14px;"></div>
+              </div>
+              <div class="col-4">
+                <div style="font-size:11px;color:var(--clr-text-muted);">Volume</div>
+                <div id="dm-volume" style="font-weight:700;font-size:14px;"></div>
+              </div>
+              <div class="col-4">
+                <div style="font-size:11px;color:var(--clr-text-muted);">Total Bayar</div>
+                <div id="dm-total" style="font-weight:700;font-size:14px;color:#cc0000;"></div>
+              </div>
+            </div>
+          </div>
+          <div style="background:rgba(59,130,246,0.05);border:1px solid rgba(59,130,246,0.25);border-radius:10px;padding:16px;margin-bottom:14px;">
+            <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:#3B82F6;margin-bottom:12px;border-bottom:1px solid rgba(59,130,246,0.2);padding-bottom:8px;">
+              <i class="bi bi-person-badge me-1"></i>Data Supir Pengantar
+            </div>
+            <div class="row g-2">
+              <div class="col-6">
+                <div style="font-size:11px;color:var(--clr-text-muted);">Nama Supir</div>
+                <div id="dm-driver-name" style="font-weight:700;font-size:14px;"></div>
+              </div>
+              <div class="col-6">
+                <div style="font-size:11px;color:var(--clr-text-muted);">No. WhatsApp</div>
+                <div id="dm-driver-phone" style="font-weight:700;font-size:14px;"></div>
+              </div>
+            </div>
+          </div>
+          <div style="background:var(--clr-bg);border:1px solid var(--clr-border);border-radius:10px;padding:14px;">
+            <div class="row g-2">
+              <div class="col-6">
+                <div style="font-size:11px;color:var(--clr-text-muted);">Dikonfirmasi Oleh</div>
+                <div id="dm-confirmed-by" style="font-weight:600;font-size:13px;"></div>
+              </div>
+              <div class="col-6">
+                <div style="font-size:11px;color:var(--clr-text-muted);">Waktu Konfirmasi</div>
+                <div id="dm-confirmed-at" style="font-weight:600;font-size:13px;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer" style="border-top:1px solid var(--clr-border);gap:10px;">
+        <button type="button" class="btn-outline-app" data-bs-dismiss="modal">
+          <i class="bi bi-x-lg"></i> Tutup
+        </button>
+        <button type="button" class="btn-sm-action btn-sm-wa" 
+          onclick="const o=allOrders.find(x=>x.id===document.getElementById('btn-print-delivery').dataset.orderId);if(o&&o.driver_phone)openWaWithOrder(o.id,o.driver_phone,o.driver_name);" 
+          style="padding:9px 18px;font-size:13px;">
+          <i class="bi bi-whatsapp"></i> Kirim ke Supir
+        </button>
+        <button type="button" class="btn-primary-app" id="btn-print-delivery" onclick="doPrintDelivery()">
+          <i class="bi bi-printer"></i> Cetak Surat Jalan
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     MODAL: KIRIM WA SUPIR
+════════════════════════════════════════ -->
+<div class="modal fade" id="waModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-whatsapp" style="color:#25D366;"></i> Kirim ke WhatsApp Supir</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div>
+          <label class="form-label-app">Pilih Supir</label>
+          <select id="wa-driver-select" class="form-select-app mb-3" onchange="updateWaPreview()">
+            <option value="">-- Pilih Supir --</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label-app">Preview Pesan WA</label>
+          <textarea id="wa-message-preview" class="form-control-app large" readonly style="height:180px;font-size:12px;font-family:monospace;background:#f8f8f8;"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-outline-app" data-bs-dismiss="modal">Batal</button>
+        <button type="button" class="btn-primary-app" style="background:#25D366;border:none;" onclick="openWhatsApp()">
+          <i class="bi bi-send-fill"></i> Kirim WA
+        </button>
+      </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PRINT: Delivery Slip (hidden) -->
+<div class="print-receipt" id="delivery-slip" style="display:none;">
+  <div class="print-header" style="border-bottom:3px solid #cc0000;padding-bottom:12px;margin-bottom:0;">
+    <div><div class="print-company-name" style="color:#cc0000;">PERTAMINA</div><div style="font-size:11px;color:#666;">Sistem Manajemen Pemesanan BBM</div></div>
+    <div style="text-align:right;">
+      <div style="font-size:18px;font-weight:800;letter-spacing:1px;color:#1a1a2e;">SURAT JALAN</div>
+      <div style="font-size:11px;color:#cc0000;font-weight:700;">BUKTI PENGIRIMAN BAHAN BAKAR</div>
+      <div style="font-size:12px;font-weight:700;margin-top:4px;" id="owner-delivery-order-id"></div>
+    </div>
+  </div>
+  <div style="background:#cc0000;color:white;text-align:center;padding:6px;font-size:11px;font-weight:700;letter-spacing:2px;margin-bottom:16px;">✅ PEMBAYARAN TELAH DIKONFIRMASI</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+    <div class="print-section" style="margin:0;">
+      <div class="print-section-title">Informasi Pemesanan</div>
+      <table class="print-table">
+        <tr><th style="width:45%">No. Order</th><td id="owner-delivery-order-id-2" style="color:#cc0000;font-weight:700;"></td></tr>
+        <tr><th>Tgl. Pesan</th><td id="owner-delivery-order-date"></td></tr>
+        <tr><th>Tgl. Kirim</th><td id="owner-delivery-date-val" style="font-weight:700;"></td></tr>
+        <tr><th>Dikonfirmasi</th><td id="owner-delivery-confirmed-by"></td></tr>
+        <tr><th>Tgl. Konfirmasi</th><td id="owner-delivery-confirmed-at"></td></tr>
+      </table>
+    </div>
+    <div class="print-section" style="margin:0;">
+      <div class="print-section-title">Data Supir</div>
+      <table class="print-table">
+        <tr><th style="width:45%">Nama Supir</th><td id="owner-delivery-driver-name" style="font-weight:700;"></td></tr>
+        <tr><th>No. WhatsApp</th><td id="owner-delivery-driver-phone"></td></tr>
+        <tr><th>Perusahaan</th><td id="owner-delivery-company"></td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="print-section">
+    <div class="print-section-title">Detail Bahan Bakar</div>
+    <table class="print-table">
+      <thead><tr><th>Jenis BBM</th><th>Volume (L)</th><th>Total Pembayaran</th></tr></thead>
+      <tbody><tr>
+        <td id="owner-delivery-fuel-type" style="font-weight:700;"></td>
+        <td id="owner-delivery-volume"></td>
+        <td id="owner-delivery-total" class="print-total"></td>
+      </tr></tbody>
+    </table>
+  </div>
+  <div class="print-section"><div class="print-note">* Surat jalan ini merupakan dokumen resmi pengiriman bahan bakar yang telah dikonfirmasi.<br>* Supir wajib membawa surat jalan ini saat pengantaran.</div></div>
+  <div class="print-signature">
+    <div class="print-signature-box"><div class="print-signature-line"></div><div class="print-signature-name">Admin Pengirim</div><div class="print-signature-title">Admin</div></div>
+    <div class="print-signature-box"><div class="print-signature-line"></div><div class="print-signature-name" id="owner-delivery-driver-sign"></div><div class="print-signature-title">Supir</div></div>
+    <div class="print-signature-box"><div class="print-signature-line"></div><div class="print-signature-name">Penerima</div><div class="print-signature-title">Pihak Penerima</div></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/auth.js"></script>
+<script src="assets/js/owner.js"></script>
+</body>
+</html>
