@@ -71,7 +71,14 @@ const API = {
       },
       body: JSON.stringify(data),
     });
-    return res.json();
+
+    const text = await res.text();
+    try {
+      return JSON.parse(text);
+    } catch(e) {
+      console.error('GAS returned non-JSON:', text);
+      throw new Error('Invalid JSON from server. See Console.');
+    }
   },
 
   async get(params = {}) {
@@ -80,7 +87,14 @@ const API = {
       method: 'GET',
       credentials: 'omit',
     });
-    return res.json();
+
+    const text = await res.text();
+    try {
+      return JSON.parse(text);
+    } catch(e) {
+      console.error('GAS returned non-JSON:', text);
+      throw new Error('Invalid JSON from server. See Console.');
+    }
   },
 };
 

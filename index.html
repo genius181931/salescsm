@@ -152,8 +152,8 @@
           setLoading(false);
         }
       } catch (err) {
-        showError('Koneksi gagal. Periksa URL Apps Script di config.js.');
-        console.error(err);
+        showError('Koneksi gagal. Error: ' + err.message + ' (Periksa console/URL Apps Script)');
+        console.error('Fetch Error:', err);
         setLoading(false);
       }
     });
