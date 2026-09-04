@@ -5,11 +5,13 @@
 let allOrders   = [];
 let allUsers    = [];
 let allDrivers  = [];
+let allCustomers = [];
 let fuelPrices  = [];
 let statsData   = null;
 let currentUser = null;
 let pendingConfirmOrderId = null;
 let pendingWaOrder = null;
+let editingCustomerId = null;
 let revenueChart = null;
 let fuelChart    = null;
 
@@ -25,11 +27,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadDrivers();
   await loadSettings();
   await loadFuelPricesOwner();
+  await loadCustomers();
 });
 
 // ── Section Navigation ──────────────────────────────
 function showSection(name, clickedEl) {
-  const sections = ['dashboard', 'laporan', 'pengguna', 'supir', 'harga', 'pengaturan'];
+  const sections = ['dashboard', 'laporan', 'pengguna', 'supir', 'harga', 'pengaturan', 'customer'];
   sections.forEach(s => {
     document.getElementById(`section-${s}`).style.display = (s === name) ? 'block' : 'none';
   });
@@ -42,8 +45,9 @@ function showSection(name, clickedEl) {
     'laporan':     ['Laporan Lengkap',        'Semua Data'],
     'pengguna':    ['Kelola Pengguna',        'User Management'],
     'supir':       ['Kelola Supir',           'Driver Management'],
-    'harga':       ['Update Harga',           'Price Management'],
+    'harga':       ['Update Harga',           'Harga per Customer'],
     'pengaturan':  ['Pengaturan Sistem',      'System Settings'],
+    'customer':    ['Data Customer',          'Manajemen Customer'],
   };
   document.getElementById('topbar-section-title').textContent = titles[name]?.[0] || '';
   document.getElementById('topbar-section-name').textContent  = titles[name]?.[1] || '';
@@ -52,6 +56,8 @@ function showSection(name, clickedEl) {
   section.classList.remove('anim-fade-in-up');
   void section.offsetWidth;
   section.classList.add('anim-fade-in-up');
+
+  if (name === 'harga') populatePriceCustomerDropdown();
 }
 
 // ── Load Stats (for charts) ──────────────────────
@@ -265,53 +271,58 @@ async function saveTruckFeeOwner() {
 }
 
 // ── Load Fuel Prices (Owner) ─────────────────────
-async function loadFuelPricesOwner(btn = null) {
-  if (btn) {
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
-  }
-  try {
-    const result = await API.post({ action: 'getFuelPrices' });
-    if (result.success) {
-      fuelPrices = result.data || [];
-      renderFuelPricesListOwner();
-      if (btn) UI.showToast('Data harga BBM diperbarui', 'success');
-    }
-  } catch (err) {
-    console.error('Gagal memuat harga BBM:', err);
-    if (btn) UI.showToast('Gagal memuat harga BBM.', 'error');
-  }
-  if (btn) {
-    btn.disabled = false;
-    btn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> Refresh';
+async function loadFuelPricesOwner(customerId = 'DEFAULT') {
+  const result = await API.post({ action: 'getFuelPrices', customer_id: customerId });
+  if (result.success) {
+    fuelPrices = result.data || [];
+    renderFuelPricesListOwner(customerId);
   }
 }
 
-function renderFuelPricesListOwner() {
+function populatePriceCustomerDropdown() {
+  const sel = document.getElementById('owner-price-customer-select');
+  if (!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = '<option value="DEFAULT">⭐ Harga Default (Berlaku Umum)</option>' +
+    allCustomers.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+  sel.value = cur || 'DEFAULT';
+  loadFuelPricesOwner(sel.value);
+}
+
+function reloadPricesForSelectedCustomer() {
+  const sel = document.getElementById('owner-price-customer-select');
+  loadFuelPricesOwner(sel ? sel.value : 'DEFAULT');
+}
+
+function renderFuelPricesListOwner(customerId = 'DEFAULT') {
   const container = document.getElementById('fuel-prices-list');
   if (!fuelPrices.length) {
     container.innerHTML = '<p class="text-muted text-center">Belum ada data harga.</p>';
     return;
   }
+  const isCustom = customerId !== 'DEFAULT';
+  const custName = isCustom ? allCustomers.find(c => c.id === customerId)?.name : 'Default';
 
   container.innerHTML = fuelPrices.map(fp => `
     <div class="d-flex align-items-center gap-3 mb-3 p-3" style="background:var(--clr-bg);border-radius:var(--radius-md);border:1px solid var(--clr-border);">
       <div style="flex:1;">
-        <div class="fw-600 mb-1">${fp.fuel_type}</div>
+        <div class="fw-600 mb-1">${fp.fuel_type}
+          ${fp.is_custom ? '<span style="font-size:10px;background:#CC000015;color:#CC0000;border-radius:4px;padding:1px 6px;margin-left:4px;">Khusus</span>' : ''}
+        </div>
         <div class="text-muted" style="font-size:12px;">
-          Terakhir diperbarui: ${UI.formatDateTime(fp.updated_at)}
+          ${isCustom ? `Customer: <strong>${custName}</strong> &bull; ` : ''}Diperbarui: ${UI.formatDateTime(fp.updated_at)}
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:10px;">
         <input type="number"
-          id="price-${fp.fuel_type.replace(/\s/g,'_')}"
+          id="price-${fp.fuel_type.replace(/[\s()]/g,'_')}"
           value="${fp.price}"
           min="0"
           class="form-control-app"
           style="width:140px;"
           placeholder="Harga/liter"
         />
-        <button class="btn-primary-app" onclick="updateFuelPriceOwner('${fp.fuel_type}', this)">
+        <button class="btn-primary-app" onclick="updateFuelPriceOwner('${fp.fuel_type}', '${customerId}', this)">
           <i class="bi bi-check-lg"></i> Simpan
         </button>
       </div>
@@ -319,8 +330,8 @@ function renderFuelPricesListOwner() {
   `).join('');
 }
 
-async function updateFuelPriceOwner(fuelType, btn) {
-  const inputId = 'price-' + fuelType.replace(/\s/g, '_');
+async function updateFuelPriceOwner(fuelType, customerId, btn) {
+  const inputId = 'price-' + fuelType.replace(/[\s()]/g, '_');
   const input   = document.getElementById(inputId);
   const price   = parseFloat(input.value);
 
@@ -334,14 +345,15 @@ async function updateFuelPriceOwner(fuelType, btn) {
 
   try {
     const result = await API.post({
-      action:    'updateFuelPrice',
-      fuel_type: fuelType,
-      price:     price,
+      action:      'updateFuelPrice',
+      fuel_type:   fuelType,
+      price:       price,
+      customer_id: customerId || 'DEFAULT',
     });
 
     if (result.success) {
       UI.showToast(`Harga ${fuelType} berhasil diperbarui!`, 'success');
-      await loadFuelPricesOwner();
+      await loadFuelPricesOwner(customerId);
     } else {
       UI.showToast(result.message || 'Gagal memperbarui harga.', 'error');
     }
@@ -351,6 +363,112 @@ async function updateFuelPriceOwner(fuelType, btn) {
 
   btn.disabled = false;
   btn.innerHTML = '<i class="bi bi-check-lg"></i> Simpan';
+}
+
+// ── Customer Management (Owner - with Delete) ──────
+async function loadCustomers(btn = null) {
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>'; }
+  try {
+    const result = await API.post({ action: 'getCustomers' });
+    if (result.success) {
+      allCustomers = result.data || [];
+      renderCustomersTable();
+      populatePriceCustomerDropdown();
+    }
+  } catch (err) { console.error(err); }
+  if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> Refresh'; }
+}
+
+function renderCustomersTable() {
+  const tbody = document.getElementById('customers-body');
+  if (!tbody) return;
+  if (!allCustomers.length) {
+    tbody.innerHTML = '<tr><td colspan="4" class="table-empty"><i class="bi bi-inbox"></i><p>Belum ada data customer.</p></td></tr>';
+    return;
+  }
+  tbody.innerHTML = allCustomers.map(c => `
+    <tr>
+      <td><span class="fw-600">${c.name}</span></td>
+      <td>${c.phone || '-'}</td>
+      <td>${c.address || '-'}</td>
+      <td>
+        <div class="d-flex gap-1">
+          <button class="btn-sm-action btn-sm-edit" onclick="openCustomerModal('${c.id}')">
+            <i class="bi bi-pencil"></i> Edit
+          </button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function openCustomerModal(customerId = null) {
+  editingCustomerId = customerId;
+  document.getElementById('customer-id').value      = customerId || '';
+  document.getElementById('customer-name').value    = '';
+  document.getElementById('customer-phone').value   = '';
+  document.getElementById('customer-address').value = '';
+
+  const titleEl = document.getElementById('customer-modal-title');
+  const delBtn  = document.getElementById('btn-delete-customer');
+
+  if (customerId) {
+    const c = allCustomers.find(x => x.id === customerId);
+    if (c) {
+      document.getElementById('customer-name').value    = c.name;
+      document.getElementById('customer-phone').value   = c.phone || '';
+      document.getElementById('customer-address').value = c.address || '';
+    }
+    titleEl.innerHTML = '<i class="bi bi-pencil"></i> Edit Customer';
+    if (delBtn) delBtn.style.display = 'inline-flex'; // Owner can delete
+  } else {
+    titleEl.innerHTML = '<i class="bi bi-building-add"></i> Tambah Customer';
+    if (delBtn) delBtn.style.display = 'none';
+  }
+
+  new bootstrap.Modal(document.getElementById('customerModal')).show();
+}
+
+async function saveCustomer() {
+  const id      = document.getElementById('customer-id').value;
+  const name    = document.getElementById('customer-name').value.trim();
+  const phone   = document.getElementById('customer-phone').value.trim();
+  const address = document.getElementById('customer-address').value.trim();
+
+  if (!name) { UI.showToast('Nama perusahaan wajib diisi.', 'error'); return; }
+
+  try {
+    const action = id ? 'updateCustomer' : 'addCustomer';
+    const result = await API.post({ action, id, name, phone, address });
+    if (result.success) {
+      UI.showToast(result.message, 'success');
+      bootstrap.Modal.getInstance(document.getElementById('customerModal')).hide();
+      await loadCustomers();
+    } else {
+      UI.showToast(result.message || 'Gagal menyimpan.', 'error');
+    }
+  } catch (err) {
+    UI.showToast('Koneksi gagal.', 'error');
+  }
+}
+
+async function deleteCustomer() {
+  const id = document.getElementById('customer-id').value;
+  if (!id) return;
+  if (!confirm('Yakin ingin menghapus customer ini? Semua harga khusus customer ini juga akan terhapus.')) return;
+
+  try {
+    const result = await API.post({ action: 'deleteCustomer', id });
+    if (result.success) {
+      UI.showToast(result.message, 'success');
+      bootstrap.Modal.getInstance(document.getElementById('customerModal')).hide();
+      await loadCustomers();
+    } else {
+      UI.showToast(result.message || 'Gagal menghapus.', 'error');
+    }
+  } catch (err) {
+    UI.showToast('Koneksi gagal.', 'error');
+  }
 }
 
 // ── Load All Orders (for report) ─────────────────
@@ -523,23 +641,119 @@ function doPrintDelivery() {
   const order   = allOrders.find(o => o.id === orderId);
   if (!order) return;
 
-  document.getElementById('owner-delivery-order-id').textContent     = order.id;
-  document.getElementById('owner-delivery-order-id-2').textContent   = order.id;
-  document.getElementById('owner-delivery-order-date').textContent   = UI.formatDate(order.order_date);
-  document.getElementById('owner-delivery-date-val').textContent     = UI.formatDate(order.delivery_date);
-  document.getElementById('owner-delivery-company').textContent      = order.company;
-  document.getElementById('owner-delivery-fuel-type').textContent    = order.fuel_type;
-  document.getElementById('owner-delivery-volume').textContent       = UI.formatNumber(order.volume) + ' L';
-  document.getElementById('owner-delivery-total').textContent        = UI.formatCurrency(order.total);
-  document.getElementById('owner-delivery-driver-name').textContent  = order.driver_name  || '_____________';
-  document.getElementById('owner-delivery-driver-phone').textContent = order.driver_phone || '_____________';
-  document.getElementById('owner-delivery-confirmed-by').textContent = order.confirmed_by || '-';
-  document.getElementById('owner-delivery-confirmed-at').textContent = UI.formatDateTime(order.confirmed_at) || '-';
-  document.getElementById('owner-delivery-driver-sign').textContent  = order.driver_name  || '_____________';
+  const html = `
+    <div class="print-header" style="border-bottom:3px solid #cc0000;padding-bottom:12px;margin-bottom:0;">
+      <div>
+        <div class="print-company-name">PERTAMINA</div>
+        <div class="print-sub">Sistem Manajemen Pemesanan BBM</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:18px;font-weight:800;letter-spacing:1px;color:#1a1a2e;">SURAT JALAN</div>
+        <div style="font-size:11px;color:#cc0000;font-weight:700;">BUKTI PENGIRIMAN BAHAN BAKAR</div>
+        <div style="font-size:12px;font-weight:700;margin-top:4px;">${order.id}</div>
+      </div>
+    </div>
 
-  document.getElementById('delivery-slip').style.display = 'block';
-  window.print();
-  document.getElementById('delivery-slip').style.display = 'none';
+    <div class="status-banner">✅ PEMBAYARAN TELAH DIKONFIRMASI</div>
+
+    <div class="grid2">
+      <div class="print-section" style="margin:0;">
+        <div class="print-section-title">Informasi Pemesanan</div>
+        <table class="print-table">
+          <tr><th style="width:45%">No. Order</th><td style="color:#cc0000;font-weight:700;">${order.id}</td></tr>
+          <tr><th>Tgl. Pesan</th><td>${UI.formatDate(order.order_date)}</td></tr>
+          <tr><th>Tgl. Kirim</th><td style="font-weight:700;">${UI.formatDate(order.delivery_date)}</td></tr>
+          <tr><th>Dikonfirmasi</th><td>${order.confirmed_by || '-'}</td></tr>
+          <tr><th>Tgl. Konfirmasi</th><td>${UI.formatDateTime(order.confirmed_at) || '-'}</td></tr>
+        </table>
+      </div>
+      <div class="print-section" style="margin:0;">
+        <div class="print-section-title">Data Supir</div>
+        <table class="print-table">
+          <tr><th style="width:45%">Nama Supir</th><td style="font-weight:700;">${order.driver_name || '_____________'}</td></tr>
+          <tr><th>No. WhatsApp</th><td>${order.driver_phone || '_____________'}</td></tr>
+          <tr><th>Perusahaan</th><td>${order.company}</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="print-section">
+      <div class="print-section-title">Detail Bahan Bakar</div>
+      <table class="print-table">
+        <thead><tr><th>Jenis BBM</th><th>Volume (L)</th><th>Total Pembayaran</th></tr></thead>
+        <tbody><tr>
+          <td style="font-weight:700;">${order.fuel_type}</td>
+          <td>${UI.formatNumber(order.volume)} L</td>
+          <td class="print-total">${UI.formatCurrency(order.total)}</td>
+        </tr></tbody>
+      </table>
+    </div>
+
+    <div class="print-section">
+      <div class="print-note">
+        * Surat jalan ini merupakan dokumen resmi pengiriman bahan bakar yang telah dikonfirmasi pembayarannya.<br>
+        * Supir wajib membawa surat jalan ini saat pengantaran dan menyerahkan salinannya kepada penerima.<br>
+        * Dokumen ini sah tanpa tanda tangan jika telah terverifikasi secara digital oleh sistem.
+      </div>
+    </div>
+
+    <div class="print-signature">
+      <div class="print-signature-box">
+        <div style="font-size:10px;color:#666;margin-bottom:4px;">Tanggal: _______________</div>
+        <div class="print-signature-line"></div>
+        <div class="print-signature-name">Admin Pengirim</div>
+        <div class="print-signature-title">Admin</div>
+      </div>
+      <div class="print-signature-box">
+        <div style="font-size:10px;color:#666;margin-bottom:4px;">Tanggal: _______________</div>
+        <div class="print-signature-line"></div>
+        <div class="print-signature-name">${order.driver_name || '_____________'}</div>
+        <div class="print-signature-title">Supir Pengiriman</div>
+      </div>
+      <div class="print-signature-box">
+        <div style="font-size:10px;color:#666;margin-bottom:4px;">Tanggal: _______________</div>
+        <div class="print-signature-line"></div>
+        <div class="print-signature-name">Penerima</div>
+        <div class="print-signature-title">Pihak Penerima</div>
+      </div>
+    </div>
+  `;
+  openPrintWindow(html);
+}
+
+// ── Print Window helper ───────────────────────────
+function openPrintWindow(html) {
+  const w = window.open('', '_blank', 'width=900,height=700');
+  if (!w) { alert('Popup diblokir browser. Izinkan popup untuk halaman ini.'); return; }
+  const printCSS = `
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', Arial, sans-serif; color: #111; padding: 28px 36px; font-size: 13px; }
+    .print-header { display:flex; align-items:flex-start; justify-content:space-between; padding-bottom:14px; border-bottom:3px solid #CC0000; margin-bottom:20px; }
+    .print-company-name { font-size:22px; font-weight:800; color:#CC0000; }
+    .print-sub { font-size:11px; color:#666; margin-top:2px; }
+    .print-doc-title { font-size:17px; font-weight:800; text-align:right; }
+    .print-doc-number { font-size:12px; color:#666; text-align:right; margin-top:3px; }
+    .print-section { margin-bottom:18px; }
+    .print-section-title { font-size:11px; font-weight:700; text-transform:uppercase; color:#888; letter-spacing:.6px; border-bottom:1px solid #eee; padding-bottom:5px; margin-bottom:8px; }
+    .print-table { width:100%; border-collapse:collapse; font-size:12px; }
+    .print-table th { background:#f7f7f7; padding:7px 10px; text-align:left; font-weight:700; border:1px solid #ddd; }
+    .print-table td { padding:7px 10px; border:1px solid #ddd; }
+    .print-total { font-size:14px; font-weight:800; color:#CC0000; }
+    .print-note { font-size:11px; color:#999; line-height:1.6; }
+    .print-signature { display:flex; justify-content:space-between; margin-top:40px; }
+    .print-signature-box { text-align:center; width:160px; }
+    .print-signature-line { border-bottom:1px solid #333; margin-bottom:6px; height:50px; }
+    .print-signature-name { font-size:12px; font-weight:700; }
+    .print-signature-title { font-size:11px; color:#666; }
+    .status-banner { background:#CC0000; color:white; text-align:center; padding:6px; font-size:11px; font-weight:700; letter-spacing:2px; margin-bottom:16px; }
+    .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:16px; }
+    @media print { @page { margin: 15mm; } body { padding: 0; } }
+  `;
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Cetak</title><style>${printCSS}</style></head><body>${html}</body></html>`);
+  w.document.close();
+  w.onload = () => { w.focus(); w.print(); };
+  setTimeout(() => { try { w.focus(); w.print(); } catch(e){} }, 800);
 }
 
 function filterReport() {

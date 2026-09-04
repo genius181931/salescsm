@@ -38,6 +38,10 @@
       <a class="sidebar-nav-item" href="#" onclick="showSection('semua-order', this)">
         <i class="bi bi-list-ul"></i> Semua Pemesanan
       </a>
+      <div class="sidebar-nav-label">Data Master</div>
+      <a class="sidebar-nav-item" href="#" onclick="showSection('customer', this)">
+        <i class="bi bi-building"></i> Data Customer
+      </a>
       <div class="sidebar-nav-label">Pengaturan</div>
       <a class="sidebar-nav-item" href="#" onclick="showSection('harga-bbm', this)">
         <i class="bi bi-tags-fill"></i> Update Harga BBM
@@ -227,24 +231,34 @@
       <!-- ════════════════════════════════════════
            SECTION: HARGA BBM & TRUCK
       ════════════════════════════════════════ -->
+      <!-- ════════════════════════════════════════
+           SECTION: HARGA BBM
+      ════════════════════════════════════════ -->
       <section id="section-harga-bbm" style="display:none;" class="anim-fade-in-up">
         <div class="page-header">
           <div>
             <div class="page-title">Update Harga</div>
-            <div class="page-subtitle">Perbarui harga bahan bakar dan jasa sewa truck.</div>
+            <div class="page-subtitle">Perbarui harga bahan bakar per customer dan jasa sewa truck.</div>
           </div>
         </div>
 
         <div class="row g-4">
           <div class="col-lg-7">
-            <div class="card-panel h-100">
+            <div class="card-panel">
               <div class="card-panel-header">
                 <div class="card-panel-title"><i class="bi bi-tags-fill"></i> Daftar Harga BBM</div>
-                <button class="btn-outline-app" onclick="loadFuelPricesAdmin(this)">
+                <button class="btn-outline-app" onclick="reloadPricesForSelectedCustomer()">
                   <i class="bi bi-arrow-clockwise"></i> Refresh
                 </button>
               </div>
               <div class="card-panel-body">
+                <div class="mb-3">
+                  <label class="form-label-app">Pilih Customer / Perusahaan</label>
+                  <select id="admin-price-customer-select" class="form-select-app" onchange="reloadPricesForSelectedCustomer()">
+                    <option value="DEFAULT">⭐ Harga Default (Berlaku Umum)</option>
+                  </select>
+                  <small class="text-muted mt-1 d-block">Pilih customer untuk mengatur harga khusus, atau pilih "Harga Default" untuk harga umum.</small>
+                </div>
                 <div id="fuel-prices-list">
                   <p class="text-muted text-center py-3">Memuat harga...</p>
                 </div>
@@ -253,7 +267,7 @@
           </div>
           
           <div class="col-lg-5">
-            <div class="card-panel h-100">
+            <div class="card-panel">
               <div class="card-panel-header">
                 <div class="card-panel-title"><i class="bi bi-truck"></i> Harga Jasa Sewa Truck</div>
               </div>
@@ -272,9 +286,85 @@
         </div>
       </section>
 
+      <!-- ════════════════════════════════════════
+           SECTION: DATA CUSTOMER
+      ════════════════════════════════════════ -->
+      <section id="section-customer" style="display:none;" class="anim-fade-in-up">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Data Customer</div>
+            <div class="page-subtitle">Kelola daftar perusahaan / customer.</div>
+          </div>
+          <button class="btn-primary-app" onclick="openCustomerModal()">
+            <i class="bi bi-building-add"></i> Tambah Customer
+          </button>
+        </div>
+
+        <div class="card-panel">
+          <div class="card-panel-header">
+            <div class="card-panel-title"><i class="bi bi-building"></i> Daftar Customer</div>
+            <button class="btn-outline-app" onclick="loadCustomers(this)">
+              <i class="bi bi-arrow-clockwise"></i> Refresh
+            </button>
+          </div>
+          <div class="table-wrapper">
+            <table class="app-table">
+              <thead>
+                <tr>
+                  <th>Nama Perusahaan</th>
+                  <th>No. Telepon</th>
+                  <th>Alamat</th>
+                  <th>Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="customers-body">
+                <tr><td colspan="4" class="table-empty">
+                  <i class="bi bi-inbox"></i><p>Memuat data...</p>
+                </td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
     </div><!-- /.page-content -->
   </div><!-- /.main-content -->
 </div><!-- /.app-layout -->
+
+<!-- ════════════════════════════════════════
+     MODAL: TAMBAH / EDIT CUSTOMER
+════════════════════════════════════════ -->
+<div class="modal fade" id="customerModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="customer-modal-title"><i class="bi bi-building-add"></i> Tambah Customer</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="customer-id" />
+        <div class="mb-3">
+          <label class="form-label-app">Nama Perusahaan <span class="required">*</span></label>
+          <input type="text" id="customer-name" class="form-control-app" placeholder="Contoh: PT Alam Indah" />
+        </div>
+        <div class="mb-3">
+          <label class="form-label-app">No. Telepon</label>
+          <input type="text" id="customer-phone" class="form-control-app" placeholder="Contoh: 081234567890" />
+        </div>
+        <div class="mb-3">
+          <label class="form-label-app">Alamat</label>
+          <textarea id="customer-address" class="form-control-app" rows="2" placeholder="Contoh: Jl. Raya No. 1, Jakarta"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-outline-app" data-bs-dismiss="modal">Batal</button>
+        <button type="button" class="btn-primary-app" onclick="saveCustomer()">
+          <i class="bi bi-check-lg"></i> Simpan
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- ════════════════════════════════════════
      MODAL: KONFIRMASI BAYAR

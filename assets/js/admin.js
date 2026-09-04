@@ -4,10 +4,12 @@
 
 let allOrders    = [];
 let allDrivers   = [];
+let allCustomers = [];
 let fuelPrices   = [];
 let currentUser  = null;
 let pendingConfirmOrderId = null;
 let pendingWaOrder        = null;
+let editingCustomerId     = null;
 
 // ── Init ─────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
@@ -19,6 +21,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadDrivers();
   await loadFuelPricesAdmin();
   await loadSettingsAdmin();
+  await loadCustomers();
 });
 
 // ── Load & Save Settings ─────────────────────────
@@ -60,7 +63,7 @@ async function saveTruckFeeAdmin() {
 
 // ── Section Navigation ───────────────────────────
 function showSection(name, clickedEl) {
-  const sections = ['dashboard', 'semua-order', 'harga-bbm'];
+  const sections = ['dashboard', 'semua-order', 'harga-bbm', 'customer'];
   sections.forEach(s => {
     document.getElementById(`section-${s}`).style.display = (s === name) ? 'block' : 'none';
   });
@@ -71,7 +74,8 @@ function showSection(name, clickedEl) {
   const titles = {
     'dashboard':   ['Dashboard Admin', 'Overview'],
     'semua-order': ['Semua Pemesanan', 'Manajemen Order'],
-    'harga-bbm':   ['Update Harga BBM', 'Harga Terkini'],
+    'harga-bbm':   ['Update Harga BBM', 'Harga per Customer'],
+    'customer':    ['Data Customer', 'Manajemen Customer'],
   };
   document.getElementById('topbar-section-title').textContent = titles[name]?.[0] || '';
   document.getElementById('topbar-section-name').textContent  = titles[name]?.[1] || '';
@@ -80,6 +84,9 @@ function showSection(name, clickedEl) {
   section.classList.remove('anim-fade-in-up');
   void section.offsetWidth;
   section.classList.add('anim-fade-in-up');
+
+  // Populate customer dropdown when entering price section
+  if (name === 'harga-bbm') populatePriceCustomerDropdown();
 }
 
 // ── Load All Orders ──────────────────────────────
@@ -141,53 +148,58 @@ function populateDriverSelects() {
 }
 
 // ── Load Fuel Prices (Admin) ─────────────────────
-async function loadFuelPricesAdmin(btn = null) {
-  if (btn) {
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
-  }
-  try {
-    const result = await API.post({ action: 'getFuelPrices' });
-    if (result.success) {
-      fuelPrices = result.data || [];
-      renderFuelPricesList();
-      if (btn) UI.showToast('Data harga BBM diperbarui', 'success');
-    }
-  } catch (err) {
-    console.error('Gagal memuat harga BBM:', err);
-    if (btn) UI.showToast('Gagal memuat harga BBM.', 'error');
-  }
-  if (btn) {
-    btn.disabled = false;
-    btn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> Refresh';
+async function loadFuelPricesAdmin(customerId = 'DEFAULT') {
+  const result = await API.post({ action: 'getFuelPrices', customer_id: customerId });
+  if (result.success) {
+    fuelPrices = result.data || [];
+    renderFuelPricesList(customerId);
   }
 }
 
-function renderFuelPricesList() {
+function populatePriceCustomerDropdown() {
+  const sel = document.getElementById('admin-price-customer-select');
+  if (!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = '<option value="DEFAULT">⭐ Harga Default (Berlaku Umum)</option>' +
+    allCustomers.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+  sel.value = cur || 'DEFAULT';
+  loadFuelPricesAdmin(sel.value);
+}
+
+function reloadPricesForSelectedCustomer() {
+  const sel = document.getElementById('admin-price-customer-select');
+  loadFuelPricesAdmin(sel ? sel.value : 'DEFAULT');
+}
+
+function renderFuelPricesList(customerId = 'DEFAULT') {
   const container = document.getElementById('fuel-prices-list');
   if (!fuelPrices.length) {
     container.innerHTML = '<p class="text-muted text-center">Belum ada data harga.</p>';
     return;
   }
+  const isCustom = customerId !== 'DEFAULT';
+  const custName = isCustom ? allCustomers.find(c => c.id === customerId)?.name : 'Default';
 
   container.innerHTML = fuelPrices.map(fp => `
     <div class="d-flex align-items-center gap-3 mb-3 p-3" style="background:var(--clr-bg);border-radius:var(--radius-md);border:1px solid var(--clr-border);">
       <div style="flex:1;">
-        <div class="fw-600 mb-1">${fp.fuel_type}</div>
+        <div class="fw-600 mb-1">${fp.fuel_type}
+          ${fp.is_custom ? '<span style="font-size:10px;background:#CC000015;color:#CC0000;border-radius:4px;padding:1px 6px;margin-left:4px;">Khusus</span>' : ''}
+        </div>
         <div class="text-muted" style="font-size:12px;">
-          Terakhir diperbarui: ${UI.formatDateTime(fp.updated_at)}
+          ${isCustom ? `Customer: <strong>${custName}</strong> &bull; ` : ''}Diperbarui: ${UI.formatDateTime(fp.updated_at)}
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:10px;">
         <input type="number"
-          id="price-${fp.fuel_type.replace(/\s/g,'_')}"
+          id="price-${fp.fuel_type.replace(/[\s()]/g,'_')}"
           value="${fp.price}"
           min="0"
           class="form-control-app"
           style="width:140px;"
           placeholder="Harga/liter"
         />
-        <button class="btn-primary-app" onclick="updateFuelPrice('${fp.fuel_type}', this)">
+        <button class="btn-primary-app" onclick="updateFuelPrice('${fp.fuel_type}', '${customerId}', this)">
           <i class="bi bi-check-lg"></i> Simpan
         </button>
       </div>
@@ -195,8 +207,8 @@ function renderFuelPricesList() {
   `).join('');
 }
 
-async function updateFuelPrice(fuelType, btn) {
-  const inputId = 'price-' + fuelType.replace(/\s/g, '_');
+async function updateFuelPrice(fuelType, customerId, btn) {
+  const inputId = 'price-' + fuelType.replace(/[\s()]/g, '_');
   const input   = document.getElementById(inputId);
   const price   = parseFloat(input.value);
 
@@ -210,14 +222,15 @@ async function updateFuelPrice(fuelType, btn) {
 
   try {
     const result = await API.post({
-      action:    'updateFuelPrice',
-      fuel_type: fuelType,
-      price:     price,
+      action:      'updateFuelPrice',
+      fuel_type:   fuelType,
+      price:       price,
+      customer_id: customerId || 'DEFAULT',
     });
 
     if (result.success) {
       UI.showToast(`Harga ${fuelType} berhasil diperbarui!`, 'success');
-      await loadFuelPricesAdmin();
+      await loadFuelPricesAdmin(customerId);
     } else {
       UI.showToast(result.message || 'Gagal memperbarui harga.', 'error');
     }
@@ -227,6 +240,93 @@ async function updateFuelPrice(fuelType, btn) {
 
   btn.disabled = false;
   btn.innerHTML = '<i class="bi bi-check-lg"></i> Simpan';
+}
+
+// ── Customer Management ──────────────────────────
+async function loadCustomers(btn = null) {
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>'; }
+  try {
+    const result = await API.post({ action: 'getCustomers' });
+    if (result.success) {
+      allCustomers = result.data || [];
+      renderCustomersTable();
+      populatePriceCustomerDropdown();
+    }
+  } catch (err) { console.error(err); }
+  if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> Refresh'; }
+}
+
+function renderCustomersTable() {
+  const tbody = document.getElementById('customers-body');
+  if (!tbody) return;
+  if (!allCustomers.length) {
+    tbody.innerHTML = '<tr><td colspan="4" class="table-empty"><i class="bi bi-inbox"></i><p>Belum ada data customer.</p></td></tr>';
+    return;
+  }
+  tbody.innerHTML = allCustomers.map(c => `
+    <tr>
+      <td><span class="fw-600">${c.name}</span></td>
+      <td>${c.phone || '-'}</td>
+      <td>${c.address || '-'}</td>
+      <td>
+        <div class="d-flex gap-1">
+          <button class="btn-sm-action btn-sm-edit" onclick="openCustomerModal('${c.id}')">
+            <i class="bi bi-pencil"></i> Edit
+          </button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function openCustomerModal(customerId = null) {
+  editingCustomerId = customerId;
+  document.getElementById('customer-id').value    = customerId || '';
+  document.getElementById('customer-name').value  = '';
+  document.getElementById('customer-phone').value = '';
+  document.getElementById('customer-address').value = '';
+
+  const titleEl = document.getElementById('customer-modal-title');
+  // Admin: no delete button
+  const delBtn = document.getElementById('btn-delete-customer');
+  if (delBtn) delBtn.style.display = 'none';
+
+  if (customerId) {
+    const c = allCustomers.find(x => x.id === customerId);
+    if (c) {
+      document.getElementById('customer-name').value    = c.name;
+      document.getElementById('customer-phone').value   = c.phone || '';
+      document.getElementById('customer-address').value = c.address || '';
+    }
+    titleEl.innerHTML = '<i class="bi bi-pencil"></i> Edit Customer';
+  } else {
+    titleEl.innerHTML = '<i class="bi bi-building-add"></i> Tambah Customer';
+  }
+
+  new bootstrap.Modal(document.getElementById('customerModal')).show();
+}
+
+async function saveCustomer() {
+  const id      = document.getElementById('customer-id').value;
+  const name    = document.getElementById('customer-name').value.trim();
+  const phone   = document.getElementById('customer-phone').value.trim();
+  const address = document.getElementById('customer-address').value.trim();
+
+  if (!name) { UI.showToast('Nama perusahaan wajib diisi.', 'error'); return; }
+
+  try {
+    const action = id ? 'updateCustomer' : 'addCustomer';
+    const result = await API.post({ action, id, name, phone, address });
+    if (result.success) {
+      UI.showToast(result.message, 'success');
+      bootstrap.Modal.getInstance(document.getElementById('customerModal')).hide();
+      await loadCustomers();
+    } else {
+      UI.showToast(result.message || 'Gagal menyimpan.', 'error');
+    }
+  } catch (err) {
+    UI.showToast('Koneksi gagal.', 'error');
+  }
 }
 
 // ── Render Stats ─────────────────────────────────
@@ -434,28 +534,117 @@ async function doConfirmPayment() {
   btn.innerHTML = '<i class="bi bi-check-lg"></i> Konfirmasi';
 }
 
+// ── Print helpers ────────────────────────────────
+function openPrintWindow(html) {
+  const w = window.open('', '_blank', 'width=900,height=700');
+  if (!w) { alert('Popup diblokir browser. Izinkan popup untuk halaman ini.'); return; }
+  const printCSS = `
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', Arial, sans-serif; color: #111; padding: 28px 36px; font-size: 13px; }
+    .print-header { display:flex; align-items:flex-start; justify-content:space-between; padding-bottom:14px; border-bottom:3px solid #CC0000; margin-bottom:20px; }
+    .print-company-name { font-size:22px; font-weight:800; color:#CC0000; }
+    .print-sub { font-size:11px; color:#666; margin-top:2px; }
+    .print-doc-title { font-size:17px; font-weight:800; text-align:right; }
+    .print-doc-number { font-size:12px; color:#666; text-align:right; margin-top:3px; }
+    .print-section { margin-bottom:18px; }
+    .print-section-title { font-size:11px; font-weight:700; text-transform:uppercase; color:#888; letter-spacing:.6px; border-bottom:1px solid #eee; padding-bottom:5px; margin-bottom:8px; }
+    .print-table { width:100%; border-collapse:collapse; font-size:12px; }
+    .print-table th { background:#f7f7f7; padding:7px 10px; text-align:left; font-weight:700; border:1px solid #ddd; }
+    .print-table td { padding:7px 10px; border:1px solid #ddd; }
+    .print-total { font-size:14px; font-weight:800; color:#CC0000; }
+    .print-note { font-size:11px; color:#999; line-height:1.6; }
+    .print-signature { display:flex; justify-content:space-between; margin-top:40px; }
+    .print-signature-box { text-align:center; width:160px; }
+    .print-signature-line { border-bottom:1px solid #333; margin-bottom:6px; height:50px; }
+    .print-signature-name { font-size:12px; font-weight:700; }
+    .print-signature-title { font-size:11px; color:#666; }
+    .status-banner { background:#CC0000; color:white; text-align:center; padding:6px; font-size:11px; font-weight:700; letter-spacing:2px; margin-bottom:16px; }
+    .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:16px; }
+    @media print { @page { margin: 15mm; } body { padding: 0; } }
+  `;
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Cetak</title><style>${printCSS}</style></head><body>${html}</body></html>`);
+  w.document.close();
+  w.onload = () => { w.focus(); w.print(); };
+  // Fallback for browsers where onload may not fire after document.close
+  setTimeout(() => { try { w.focus(); w.print(); } catch(e){} }, 800);
+}
+
 // ── Print Order Receipt ──────────────────────────
 function printOrder(orderId) {
   const order = allOrders.find(o => o.id === orderId);
   if (!order) return;
 
-  // Fill print template
-  document.getElementById('print-order-id').textContent     = order.id;
-  document.getElementById('print-order-date').textContent   = UI.formatDate(order.order_date);
-  document.getElementById('print-delivery-date').textContent = UI.formatDate(order.delivery_date);
-  document.getElementById('print-company').textContent      = order.company;
-  document.getElementById('print-created-by').textContent   = order.created_by;
-  document.getElementById('print-fuel-type').textContent    = order.fuel_type;
-  document.getElementById('print-price-per-liter').textContent = UI.formatCurrency(order.price_per_liter) + '/L';
-  document.getElementById('print-volume').textContent       = UI.formatNumber(order.volume) + ' L';
-  document.getElementById('print-total').textContent        = UI.formatCurrency(order.total);
-  document.getElementById('print-status').textContent       = order.status;
-  document.getElementById('print-confirmed-by').textContent = order.confirmed_by || '-';
-  document.getElementById('print-confirmed-at').textContent = UI.formatDateTime(order.confirmed_at) || '-';
-  document.getElementById('print-created-by-sign').textContent  = order.created_by;
-  document.getElementById('print-confirmed-by-sign').textContent = order.confirmed_by || '_____________';
+  const html = `
+    <div class="print-header">
+      <div>
+        <div class="print-company-name">PERTAMINA</div>
+        <div class="print-sub">Sistem Manajemen Pemesanan BBM</div>
+      </div>
+      <div>
+        <div class="print-doc-title">BUKTI PEMESANAN BBM</div>
+        <div class="print-doc-number">${order.id}</div>
+      </div>
+    </div>
 
-  window.print();
+    <div class="print-section">
+      <div class="print-section-title">Informasi Pemesanan</div>
+      <table class="print-table">
+        <tr><th style="width:35%">Tanggal Pesan</th><td>${UI.formatDate(order.order_date)}</td></tr>
+        <tr><th>Tanggal Kirim</th><td>${UI.formatDate(order.delivery_date)}</td></tr>
+        <tr><th>Perusahaan</th><td>${order.company}</td></tr>
+        <tr><th>Dibuat Oleh</th><td>${order.created_by}</td></tr>
+      </table>
+    </div>
+
+    <div class="print-section">
+      <div class="print-section-title">Detail Bahan Bakar</div>
+      <table class="print-table">
+        <thead><tr><th>Jenis BBM</th><th>Harga/Liter</th><th>Volume (L)</th><th>Total</th></tr></thead>
+        <tbody><tr>
+          <td>${order.fuel_type}</td>
+          <td>${UI.formatCurrency(order.price_per_liter)}/L</td>
+          <td>${UI.formatNumber(order.volume)} L</td>
+          <td class="print-total">${UI.formatCurrency(order.total)}</td>
+        </tr></tbody>
+      </table>
+    </div>
+
+    <div class="print-section">
+      <div class="print-section-title">Status Pembayaran</div>
+      <table class="print-table">
+        <tr><th style="width:35%">Status</th><td>${order.status}</td></tr>
+        <tr><th>Dikonfirmasi Oleh</th><td>${order.confirmed_by || '-'}</td></tr>
+        <tr><th>Tanggal Konfirmasi</th><td>${UI.formatDateTime(order.confirmed_at) || '-'}</td></tr>
+      </table>
+    </div>
+
+    <div class="print-section">
+      <div class="print-note">
+        * Dokumen ini merupakan bukti pemesanan bahan bakar yang sah dari sistem Pertamina Sales.<br>
+        * Harap simpan dokumen ini sebagai referensi pengantaran.
+      </div>
+    </div>
+
+    <div class="print-signature">
+      <div class="print-signature-box">
+        <div class="print-signature-line"></div>
+        <div class="print-signature-name">${order.created_by}</div>
+        <div class="print-signature-title">Sales</div>
+      </div>
+      <div class="print-signature-box">
+        <div class="print-signature-line"></div>
+        <div class="print-signature-name">${order.confirmed_by || '_____________'}</div>
+        <div class="print-signature-title">Admin</div>
+      </div>
+      <div class="print-signature-box">
+        <div class="print-signature-line"></div>
+        <div class="print-signature-name"></div>
+        <div class="print-signature-title">Supir</div>
+      </div>
+    </div>
+  `;
+  openPrintWindow(html);
 }
 
 // ── Print Delivery (Surat Jalan) ─────────────────
@@ -488,27 +677,84 @@ function doPrintDelivery() {
   const order = allOrders.find(o => o.id === orderId);
   if (!order) return;
 
-  // Fill print template
-  document.getElementById('delivery-order-id').textContent       = order.id;
-  document.getElementById('delivery-order-id-2').textContent     = order.id;
-  document.getElementById('delivery-order-date').textContent     = UI.formatDate(order.order_date);
-  document.getElementById('delivery-date-val').textContent       = UI.formatDate(order.delivery_date);
-  document.getElementById('delivery-company').textContent        = order.company;
-  document.getElementById('delivery-fuel-type').textContent      = order.fuel_type;
-  document.getElementById('delivery-volume').textContent         = UI.formatNumber(order.volume) + ' L';
-  document.getElementById('delivery-total').textContent          = UI.formatCurrency(order.total);
-  document.getElementById('delivery-driver-name').textContent    = order.driver_name  || '_____________';
-  document.getElementById('delivery-driver-phone').textContent   = order.driver_phone || '_____________';
-  document.getElementById('delivery-confirmed-by').textContent   = order.confirmed_by || '-';
-  document.getElementById('delivery-confirmed-at').textContent   = UI.formatDateTime(order.confirmed_at) || '-';
-  document.getElementById('delivery-driver-sign').textContent    = order.driver_name  || '_____________';
+  const html = `
+    <div class="print-header" style="border-bottom:3px solid #cc0000;padding-bottom:12px;margin-bottom:0;">
+      <div>
+        <div class="print-company-name">PERTAMINA</div>
+        <div class="print-sub">Sistem Manajemen Pemesanan BBM</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:18px;font-weight:800;letter-spacing:1px;color:#1a1a2e;">SURAT JALAN</div>
+        <div style="font-size:11px;color:#cc0000;font-weight:700;">BUKTI PENGIRIMAN BAHAN BAKAR</div>
+        <div style="font-size:12px;font-weight:700;margin-top:4px;">${order.id}</div>
+      </div>
+    </div>
 
-  // Hide normal receipt, show delivery slip
-  document.getElementById('print-receipt').style.display  = 'none';
-  document.getElementById('delivery-slip').style.display  = 'block';
-  window.print();
-  document.getElementById('print-receipt').style.display  = '';
-  document.getElementById('delivery-slip').style.display  = 'none';
+    <div class="status-banner">✅ PEMBAYARAN TELAH DIKONFIRMASI</div>
+
+    <div class="grid2">
+      <div class="print-section" style="margin:0;">
+        <div class="print-section-title">Informasi Pemesanan</div>
+        <table class="print-table">
+          <tr><th style="width:45%">No. Order</th><td style="color:#cc0000;font-weight:700;">${order.id}</td></tr>
+          <tr><th>Tgl. Pesan</th><td>${UI.formatDate(order.order_date)}</td></tr>
+          <tr><th>Tgl. Kirim</th><td style="font-weight:700;">${UI.formatDate(order.delivery_date)}</td></tr>
+          <tr><th>Dikonfirmasi</th><td>${order.confirmed_by || '-'}</td></tr>
+          <tr><th>Tgl. Konfirmasi</th><td>${UI.formatDateTime(order.confirmed_at) || '-'}</td></tr>
+        </table>
+      </div>
+      <div class="print-section" style="margin:0;">
+        <div class="print-section-title">Data Supir</div>
+        <table class="print-table">
+          <tr><th style="width:45%">Nama Supir</th><td style="font-weight:700;">${order.driver_name || '_____________'}</td></tr>
+          <tr><th>No. WhatsApp</th><td>${order.driver_phone || '_____________'}</td></tr>
+          <tr><th>Perusahaan</th><td>${order.company}</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="print-section">
+      <div class="print-section-title">Detail Bahan Bakar</div>
+      <table class="print-table">
+        <thead><tr><th>Jenis BBM</th><th>Volume (L)</th><th>Total Pembayaran</th></tr></thead>
+        <tbody><tr>
+          <td style="font-weight:700;">${order.fuel_type}</td>
+          <td>${UI.formatNumber(order.volume)} L</td>
+          <td class="print-total">${UI.formatCurrency(order.total)}</td>
+        </tr></tbody>
+      </table>
+    </div>
+
+    <div class="print-section">
+      <div class="print-note">
+        * Surat jalan ini merupakan dokumen resmi pengiriman bahan bakar yang telah dikonfirmasi pembayarannya.<br>
+        * Supir wajib membawa surat jalan ini saat pengantaran dan menyerahkan salinannya kepada penerima.<br>
+        * Dokumen ini sah tanpa tanda tangan jika telah terverifikasi secara digital oleh sistem.
+      </div>
+    </div>
+
+    <div class="print-signature">
+      <div class="print-signature-box">
+        <div style="font-size:10px;color:#666;margin-bottom:4px;">Tanggal: _______________</div>
+        <div class="print-signature-line"></div>
+        <div class="print-signature-name">Admin Pengirim</div>
+        <div class="print-signature-title">Admin</div>
+      </div>
+      <div class="print-signature-box">
+        <div style="font-size:10px;color:#666;margin-bottom:4px;">Tanggal: _______________</div>
+        <div class="print-signature-line"></div>
+        <div class="print-signature-name">${order.driver_name || '_____________'}</div>
+        <div class="print-signature-title">Supir Pengiriman</div>
+      </div>
+      <div class="print-signature-box">
+        <div style="font-size:10px;color:#666;margin-bottom:4px;">Tanggal: _______________</div>
+        <div class="print-signature-line"></div>
+        <div class="print-signature-name">Penerima</div>
+        <div class="print-signature-title">Pihak Penerima</div>
+      </div>
+    </div>
+  `;
+  openPrintWindow(html);
 }
 
 // ── WA Modal ─────────────────────────────────────

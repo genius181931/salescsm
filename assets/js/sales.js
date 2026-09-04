@@ -2,9 +2,10 @@
 // PERTAMINA SALES SYSTEM - Sales Module
 // ================================================
 
-let fuelPrices  = []; // [{fuel_type, price, updated_at}]
-let allOrders   = [];
-let currentUser = null;
+let fuelPrices   = []; // [{fuel_type, price, updated_at}]
+let allOrders    = [];
+let allCustomers = []; // [{id, name, phone, address}]
+let currentUser  = null;
 
 // ── Init ─────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
@@ -19,7 +20,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('order-date').value    = today;
   document.getElementById('delivery-date').value = today;
 
-  await Promise.all([loadFuelPrices(), loadMyOrders(), loadBankSettings()]);
+  await Promise.all([loadCustomers(), loadFuelPrices(), loadMyOrders(), loadBankSettings()]);
   setupFileUpload();
   setupOrderForm();
 });
@@ -50,15 +51,56 @@ function showSection(name, clickedEl) {
 }
 
 // ── Load Fuel Prices from GAS ────────────────────
-async function loadFuelPrices() {
+async function loadFuelPrices(customerId = '') {
   try {
-    const result = await API.post({ action: 'getFuelPrices' });
+    const result = await API.post({ action: 'getFuelPrices', customer_id: customerId || 'DEFAULT' });
     if (result.success) {
       fuelPrices = result.data;
       populateFuelSelect();
     }
   } catch (err) {
     console.error('Gagal memuat harga BBM:', err);
+  }
+}
+
+// ── Load Customers ───────────────────────────────
+async function loadCustomers() {
+  try {
+    const result = await API.post({ action: 'getCustomers' });
+    if (result.success) {
+      allCustomers = result.data || [];
+      populateCustomerSelect();
+    }
+  } catch (err) {
+    console.error('Gagal memuat data customer:', err);
+  }
+}
+
+function populateCustomerSelect() {
+  const select = document.getElementById('company-name');
+  if (!select) return;
+  select.innerHTML = '<option value="">-- Pilih Perusahaan --</option>';
+  allCustomers.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c.id;
+    opt.textContent = c.name;
+    select.appendChild(opt);
+  });
+}
+
+function onCustomerChange() {
+  const customerId = document.getElementById('company-name').value;
+  // Reset fuel dropdown
+  const fuelSelect = document.getElementById('fuel-type');
+  fuelSelect.value = '';
+  document.getElementById('price-per-liter-display').textContent = 'Memuat harga...';
+  selectedPricePerLiter = 0;
+  calculateTotal();
+
+  if (customerId) {
+    loadFuelPrices(customerId);
+  } else {
+    loadFuelPrices('DEFAULT');
   }
 }
 
@@ -165,7 +207,9 @@ function setupOrderForm() {
 async function submitOrder() {
   const orderDate    = document.getElementById('order-date').value;
   const deliveryDate = document.getElementById('delivery-date').value;
-  const company      = document.getElementById('company-name').value.trim();
+  const companySelect= document.getElementById('company-name');
+  const companyId    = companySelect.value;
+  const company      = companyId ? companySelect.options[companySelect.selectedIndex].textContent : '';
   const fuelType     = document.getElementById('fuel-type').value;
   const volume       = parseFloat(document.getElementById('volume').value) || 0;
   const fileInput    = document.getElementById('payment-proof');

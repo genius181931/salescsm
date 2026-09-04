@@ -52,11 +52,17 @@ function handleRequest(e, method) {
       case 'login':           result = login(data);           break;
 
       // Fuel
-      case 'getFuelPrices':   result = getFuelPrices();        break;
-      case 'updateFuelPrice': result = updateFuelPrice(data);  break;
+      case 'getFuelPrices':   result = getFuelPrices(data);   break;
+      case 'updateFuelPrice': result = updateFuelPrice(data); break;
+
+      // Customers
+      case 'getCustomers':    result = getCustomers();        break;
+      case 'addCustomer':     result = addCustomer(data);     break;
+      case 'updateCustomer':  result = updateCustomer(data);  break;
+      case 'deleteCustomer':  result = deleteCustomer(data);  break;
 
       // Orders
-      case 'createOrder':     result = createOrder(data);      break;
+      case 'createOrder':     result = createOrder(data);     break;
       case 'getOrders':       result = getOrders(data);        break;
       case 'confirmPayment':  result = confirmPayment(data);   break;
 
@@ -137,27 +143,40 @@ function login(data) {
 // FUEL PRICES
 // =====================================================
 
-function getFuelPrices() {
+function getFuelPrices(data) {
+  const customerId = data ? (data.customer_id || 'DEFAULT') : 'DEFAULT';
   const sheet = SS.getSheetByName('FuelPrices');
   if (!sheet) return { success: true, data: [] };
 
-  const rows   = sheet.getDataRange().getValues();
-  const prices = [];
+  const rows = sheet.getDataRange().getValues();
+  const defaultPrices = {};
+  const customPrices  = {};
 
   for (let i = 1; i < rows.length; i++) {
-    if (!rows[i][0]) continue;
-    prices.push({
-      fuel_type:  rows[i][0],
-      price:      parseFloat(rows[i][1]) || 0,
-      updated_at: rows[i][2] ? rows[i][2].toString() : '',
-    });
+    const fType = rows[i][0];
+    const price = parseFloat(rows[i][1]) || 0;
+    const updAt = rows[i][2] ? rows[i][2].toString() : '';
+    const cId   = rows[i][3] || 'DEFAULT';
+
+    if (!fType || i === 0) continue; // skip header/empty
+
+    if (cId === 'DEFAULT') {
+      defaultPrices[fType] = { fuel_type: fType, price: price, updated_at: updAt, is_custom: false };
+    } else if (cId === customerId) {
+      customPrices[fType] = { fuel_type: fType, price: price, updated_at: updAt, is_custom: true };
+    }
   }
 
-  return { success: true, data: prices };
+  // Merge them (custom overrides default)
+  const finalPricesMap = { ...defaultPrices, ...customPrices };
+  const finalPrices = Object.values(finalPricesMap);
+
+  return { success: true, data: finalPrices };
 }
 
 function updateFuelPrice(data) {
-  const { fuel_type, price } = data;
+  const { fuel_type, price, customer_id } = data;
+  const cId = customer_id || 'DEFAULT';
   if (!fuel_type || !price) {
     return { success: false, message: 'Jenis BBM dan harga diperlukan' };
   }
@@ -167,17 +186,99 @@ function updateFuelPrice(data) {
   const now   = new Date().toISOString();
 
   for (let i = 1; i < rows.length; i++) {
-    if (String(rows[i][0]).trim() === String(fuel_type).trim()) {
+    const rowType = String(rows[i][0]).trim();
+    const rowCId  = rows[i][3] || 'DEFAULT';
+    if (rowType === String(fuel_type).trim() && rowCId === cId) {
       sheet.getRange(i + 1, 2).setValue(parseFloat(price));
       sheet.getRange(i + 1, 3).setValue(now);
+      sheet.getRange(i + 1, 4).setValue(cId);
       return { success: true, message: 'Harga ' + fuel_type + ' berhasil diperbarui' };
     }
   }
 
-  // New fuel type
-  sheet.appendRow([fuel_type, parseFloat(price), now]);
-  return { success: true, message: 'Jenis BBM baru berhasil ditambahkan' };
+  // New fuel type or custom price entry
+  sheet.appendRow([fuel_type, parseFloat(price), now, cId]);
+  return { success: true, message: 'Harga BBM berhasil disimpan' };
 }
+
+// =====================================================
+// CUSTOMERS
+// =====================================================
+
+function getCustomers() {
+  const sheet = SS.getSheetByName('Customers');
+  if (!sheet) return { success: true, data: [] };
+
+  const lastRow = sheet.getLastRow();
+  if (lastRow <= 1) return { success: true, data: [] };
+
+  const rows = sheet.getRange(2, 1, lastRow - 1, 5).getValues();
+  const customers = rows.map(r => ({
+    id:         r[0],
+    name:       r[1],
+    phone:      r[2],
+    address:    r[3],
+    created_at: r[4]
+  })).reverse(); // Newest first
+
+  return { success: true, data: customers };
+}
+
+function addCustomer(data) {
+  const { name, phone, address } = data;
+  if (!name) return { success: false, message: 'Nama perusahaan diperlukan' };
+
+  const sheet = SS.getSheetByName('Customers');
+  const id    = 'CUST-' + Utilities.getUuid().substring(0, 8).toUpperCase();
+  const now   = new Date().toISOString();
+
+  sheet.appendRow([id, name, phone || '', address || '', now]);
+  return { success: true, message: 'Customer berhasil ditambahkan' };
+}
+
+function updateCustomer(data) {
+  const { id, name, phone, address } = data;
+  if (!id || !name) return { success: false, message: 'ID dan Nama diperlukan' };
+
+  const sheet = SS.getSheetByName('Customers');
+  const rows  = sheet.getDataRange().getValues();
+
+  for (let i = 1; i < rows.length; i++) {
+    if (rows[i][0] === id) {
+      if (name !== undefined)    sheet.getRange(i + 1, 2).setValue(name);
+      if (phone !== undefined)   sheet.getRange(i + 1, 3).setValue(phone);
+      if (address !== undefined) sheet.getRange(i + 1, 4).setValue(address);
+      return { success: true, message: 'Data customer berhasil diperbarui' };
+    }
+  }
+  return { success: false, message: 'Customer tidak ditemukan' };
+}
+
+function deleteCustomer(data) {
+  const { id } = data;
+  const sheet = SS.getSheetByName('Customers');
+  const rows  = sheet.getDataRange().getValues();
+
+  for (let i = 1; i < rows.length; i++) {
+    if (rows[i][0] === id) {
+      sheet.deleteRow(i + 1);
+      
+      // Also delete any custom fuel prices for this customer
+      const fpSheet = SS.getSheetByName('FuelPrices');
+      if (fpSheet) {
+        const fpRows = fpSheet.getDataRange().getValues();
+        // Traverse backwards to delete rows without messing up index
+        for (let j = fpRows.length - 1; j >= 1; j--) {
+          if (fpRows[j][3] === id) fpSheet.deleteRow(j + 1);
+        }
+      }
+      return { success: true, message: 'Customer berhasil dihapus' };
+    }
+  }
+  return { success: false, message: 'Customer tidak ditemukan' };
+}
+
+
 
 // =====================================================
 // ORDERS
@@ -645,22 +746,32 @@ function setupSheets() {
     sheet.getRange(1, 1, 1, 17).setBackground('#CC0000').setFontColor('white').setFontWeight('bold');
   }
 
+  // ── Customers Sheet ──────────────────────────
+  sheet = ss.getSheetByName('Customers');
+  if (!sheet) {
+    sheet = ss.insertSheet('Customers');
+  }
+  if (sheet.getLastRow() === 0) {
+    sheet.appendRow(['id', 'name', 'phone', 'address', 'created_at']);
+    sheet.getRange(1, 1, 1, 5).setBackground('#CC0000').setFontColor('white').setFontWeight('bold');
+  }
+
   // ── FuelPrices Sheet ─────────────────────────
   sheet = ss.getSheetByName('FuelPrices');
   if (!sheet) {
     sheet = ss.insertSheet('FuelPrices');
   }
   if (sheet.getLastRow() === 0) {
-    sheet.appendRow(['fuel_type', 'price', 'updated_at']);
-    sheet.getRange(1, 1, 1, 3).setBackground('#CC0000').setFontColor('white').setFontWeight('bold');
+    sheet.appendRow(['fuel_type', 'price', 'updated_at', 'customer_id']);
+    sheet.getRange(1, 1, 1, 4).setBackground('#CC0000').setFontColor('white').setFontWeight('bold');
     const fuels = [
-      ['Solar (B30)',        6800,  now],
-      ['Pertalite',          10000, now],
-      ['Pertamax',           13900, now],
-      ['Pertamax Turbo',     14400, now],
-      ['Pertamax Green 95',  13900, now],
-      ['Dex',                18350, now],
-      ['Dexlite',            15350, now],
+      ['Solar (B30)',        6800,  now, 'DEFAULT'],
+      ['Pertalite',          10000, now, 'DEFAULT'],
+      ['Pertamax',           13900, now, 'DEFAULT'],
+      ['Pertamax Turbo',     14400, now, 'DEFAULT'],
+      ['Pertamax Green 95',  13900, now, 'DEFAULT'],
+      ['Dex',                18350, now, 'DEFAULT'],
+      ['Dexlite',            15350, now, 'DEFAULT'],
     ];
     fuels.forEach(f => sheet.appendRow(f));
   }
